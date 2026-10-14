@@ -104,6 +104,18 @@ STRATA_MODEL_DIR = os.path.join(folder_paths.models_dir, "LLM", "Qwen3.8-Flash-N
 # Pre-converted Strata runtime data (packs, tokenizer, MTP) — lives next to GGUFs
 STRATA_DATA_DIR = os.path.join(STRATA_MODEL_DIR, "Strata-data")
 
+# Map quant names → run-*.bat filenames (must match files on disk)
+QUANT_OPTIONS = {
+    "Q2_0 (最快 / fastest)":      "run-q2_0.bat",
+    "IQ2_XS (略好 / better)":     "run-iq2_xs.bat",
+    "IQ3_XXS (更好 / good)":      "run-iq3_xxs.bat",
+    "IQ3_S (最好 / best quality)": "run-iq3_s.bat",
+}
+DEFAULT_QUANT_LABEL = "Q2_0 (最快 / fastest)"
+
+# Global preferred-quant state file
+_PREF_QUANT_FILE = os.path.join(_PLUGIN_DIR, ".preferred_quant.txt")
+
 
 # ---------------------------------------------------------------------------
 # StrataManager
@@ -116,6 +128,43 @@ class StrataManager:
     _lock = threading.Lock()
     _proc = None
     _detected_install = None
+
+    # ---------- quant preference ----------
+    @classmethod
+    def get_preferred_quant(cls):
+        """Read the user's preferred quant label (defaults to Q2_0)."""
+        try:
+            with open(_PREF_QUANT_FILE, "r", encoding="utf-8") as f:
+                label = f.read().strip()
+            if label in QUANT_OPTIONS:
+                return label
+        except Exception:
+            pass
+        return DEFAULT_QUANT_LABEL
+
+    @classmethod
+    def set_preferred_quant(cls, label):
+        """Persist the preferred quant label."""
+        if label not in QUANT_OPTIONS:
+            return False
+        try:
+            with open(_PREF_QUANT_FILE, "w", encoding="utf-8") as f:
+                f.write(label)
+            return True
+        except Exception:
+            return False
+
+    @classmethod
+    def _bat_for_quant(cls, label):
+        """Resolve a quant label to a full run-*.bat path."""
+        install = cls.find_install()
+        if not install:
+            return None
+        bat_name = QUANT_OPTIONS.get(label)
+        if not bat_name:
+            return None
+        path = os.path.join(install, bat_name)
+        return path if os.path.exists(path) else None
 
     # ---------- discovery ----------
     @classmethod
@@ -184,8 +233,9 @@ class StrataManager:
 
     # ---------- ensure running (auto-start + wait) ----------
     @classmethod
-    def ensure_running(cls, wait_timeout=240.0, poll_interval=3.0):
-        """Block until Strata is reachable. If not running, spawn the first run-*.bat.
+    def ensure_running(cls, wait_timeout=240.0, poll_interval=3.0, quant_label=None):
+        """Block until Strata is reachable. If not running, spawn the run-*.bat
+        for the given quant_label (or the user's preferred quant).
 
         Returns (ok, message). Called by any BSAI node before hitting /v1.
         """
@@ -194,8 +244,10 @@ class StrataManager:
             return True, "already_running"
 
         # Not up — spawn it
-        print("[BSAI-LLM-Strata] 后端未运行，自动启动 Strata…")
-        start_r = cls.start()
+        label = quant_label or cls.get_preferred_quant()
+        bat = cls._bat_for_quant(label)
+        print(f"[BSAI-LLM-Strata] 后端未运行，自动启动 Strata ({label})…")
+        start_r = cls.start(run_script=bat)
         if not start_r.get("ok"):
             return False, f"启动失败: {start_r.get('error')}"
         if start_r.get("already_running"):
@@ -313,6 +365,8 @@ class BSAI_LLM_Call:
                                       "tooltip": "User prompt / 用户提示词"}),
                 "system": ("STRING", {"multiline": True, "default": "You are a helpful assistant.",
                                      "tooltip": "System prompt / 系统提示词"}),
+                "quant": (list(QUANT_OPTIONS.keys()), {"default": DEFAULT_QUANT_LABEL,
+                           "tooltip": "Which Strata quant to auto-start (if not running)"}),
                 "max_tokens": ("INT", {"default": 1024, "min": 64, "max": 32768, "step": 64}),
                 "temperature": ("FLOAT", {"default": 0.7, "min": 0.0, "max": 2.0, "step": 0.05}),
             },
@@ -328,12 +382,15 @@ class BSAI_LLM_Call:
     CATEGORY = "BSAI/LLM"
     DESCRIPTION = "Call local Qwen3.8-Flash-Next via Strata (OpenAI-compatible)"
 
-    def execute(self, prompt, system, max_tokens, temperature, model=DEFAULT_STRATA_MODEL):
+    def execute(self, prompt, system, quant, max_tokens, temperature, model=DEFAULT_STRATA_MODEL):
         msgs = [
             {"role": "system", "content": system},
             {"role": "user", "content": prompt},
         ]
         try:
+            ok, msg = StrataManager.ensure_running(quant_label=quant)
+            if not ok:
+                return (f"[BSAI-LLM-Strata] Strata 启动失败: {msg}",)
             r = StrataManager.chat(msgs, model=model, max_tokens=max_tokens,
                                    temperature=temperature)
             text = r["choices"][0]["message"]["content"]
@@ -446,14 +503,26 @@ async def _web_health(request):
         "model_dir": STRATA_MODEL_DIR,
         "model_dir_exists": os.path.isdir(STRATA_MODEL_DIR),
         "endpoint": DEFAULT_STRATA_BASE_URL,
+        "preferred_quant": StrataManager.get_preferred_quant(),
+        "quant_options": list(QUANT_OPTIONS.keys()),
     })
 
 
 async def _web_start(request):
     from aiohttp import web
     script = request.query.get("script")
+    quant = request.query.get("quant")
+    if quant and not script:
+        script = StrataManager._bat_for_quant(quant)
     r = StrataManager.start(run_script=script)
     return web.json_response(r)
+
+
+async def _web_set_quant(request):
+    from aiohttp import web
+    label = request.query.get("quant", "")
+    ok = StrataManager.set_preferred_quant(label)
+    return web.json_response({"ok": ok, "preferred": StrataManager.get_preferred_quant()})
 
 
 async def _web_setup(request):
@@ -468,6 +537,7 @@ async def _web_setup(request):
 def setup_web_routes(app):
     app.router.add_get("/bsai/strata/health", _web_health)
     app.router.add_get("/bsai/strata/start", _web_start)
+    app.router.add_get("/bsai/strata/set_quant", _web_set_quant)
     app.router.add_get("/bsai/strata/setup", _web_setup)
 
 
