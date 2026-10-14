@@ -262,6 +262,18 @@ This plugin code is MIT. The bundled [Strata](https://github.com/Niko1221/Strata
 
 ## Changelog
 
+### v1.5.0 (2026-10-15) — Strata engine as git submodule + Auto-download
+- **English**: The Strata engine is now bundled as a **git submodule** inside this plugin repo.
+  - If you clone with `git clone --recursive`, the engine downloads automatically during install — no extra steps.
+  - If you install via ComfyUI Manager, plain `git clone`, or ZIP extract, the plugin auto-downloads the engine in the background on first ComfyUI startup.
+  - Either way: install, restart ComfyUI, and the engine is ready — no manual cloning or setup needed.
+- **中文**: Strata 引擎现在作为 **git submodule** 包含在本插件仓库里。
+  - 如果你用 `git clone --recursive` 克隆，引擎会在安装时自动下载，无需额外操作。
+  - 如果你通过 ComfyUI Manager、普通 `git clone` 或 ZIP 解压安装，插件会在首次启动 ComfyUI 时后台自动下载引擎。
+  - 不管哪种方式：安装完重启 ComfyUI，引擎就就绪了——无需手动 clone 或配置。
+- **Background auto-download**: On plugin load, if the engine is missing, a background thread automatically runs `git clone https://github.com/Niko1221/Strata.git`. ComfyUI starts normally while download runs in background.
+- **后台自动下载**: 插件加载时，如果引擎缺失，后台线程会自动执行 `git clone https://github.com/Niko1221/Strata.git`。ComfyUI 正常启动，下载在后台进行。
+
 ### v1.4.0 (2026-10-15) — Auto-path config generation + Speed tuning
 - **English**: On startup, the plugin now auto-scans your model directory and regenerates `strata-<quant>.json` with correct absolute paths. No more manually editing hardcoded `G:\...` paths — just extract the model folder into `models/LLM/Qwen3.8-Flash-Next/` and it works on any machine.
 - **中文**: 启动时自动扫描模型目录，动态生成 `strata-<quant>.json` 配置，所有路径自动适配当前电脑。再也不用手动改硬编码的 `G:\...` 路径——把模型文件夹解压到 `models/LLM/Qwen3.8-Flash-Next/` 即可在任意电脑上运行。
