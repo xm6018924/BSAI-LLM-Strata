@@ -101,6 +101,8 @@ _STRATA_SEARCH_PATHS = [
 
 # Where the model GGUFs live (already on disk per user)
 STRATA_MODEL_DIR = os.path.join(folder_paths.models_dir, "LLM", "Qwen3.8-Flash-Next")
+# Pre-converted Strata runtime data (packs, tokenizer, MTP) — lives next to GGUFs
+STRATA_DATA_DIR = os.path.join(STRATA_MODEL_DIR, "Strata-data")
 
 
 # ---------------------------------------------------------------------------
