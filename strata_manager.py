@@ -106,12 +106,21 @@ STRATA_DATA_DIR = os.path.join(STRATA_MODEL_DIR, "Strata-data")
 
 # Map quant names → run-*.bat filenames (must match files on disk)
 QUANT_OPTIONS = {
+    "Auto (自动适配)":             None,  # resolved by detect_best_quant()
     "Q2_0 (最快 / fastest)":      "run-q2_0.bat",
     "IQ2_XS (略好 / better)":     "run-iq2_xs.bat",
     "IQ3_XXS (更好 / good)":      "run-iq3_xxs.bat",
     "IQ3_S (最好 / best quality)": "run-iq3_s.bat",
 }
-DEFAULT_QUANT_LABEL = "Q2_0 (最快 / fastest)"
+DEFAULT_QUANT_LABEL = "Auto (自动适配)"
+
+# Hardware tiers for auto-select: (min_vram_gb, min_ram_gb, label)
+_QUANT_TIERS = [
+    (24, 64, "IQ3_S (最好 / best quality)"),
+    (20, 48, "IQ3_XXS (更好 / good)"),
+    (16, 40, "IQ2_XS (略好 / better)"),
+    (0,  0,  "Q2_0 (最快 / fastest)"),  # always fits
+]
 
 # Global preferred-quant state file
 _PREF_QUANT_FILE = os.path.join(_PLUGIN_DIR, ".preferred_quant.txt")
@@ -130,9 +139,61 @@ class StrataManager:
     _detected_install = None
 
     # ---------- quant preference ----------
+    @staticmethod
+    def detect_best_quant():
+        """Auto-detect the best fitting quant based on VRAM and RAM.
+
+        Returns a quant label string from QUANT_OPTIONS.
+        """
+        vram_gb = 0.0
+        ram_gb = 0.0
+        # VRAM via nvidia-smi
+        try:
+            import subprocess as _sp
+            out = _sp.run(
+                ["nvidia-smi", "--query-gpu=memory.total", "--format=csv,noheader,nounits"],
+                capture_output=True, text=True, timeout=5,
+            )
+            lines = [l.strip() for l in out.stdout.strip().splitlines() if l.strip()]
+            if lines:
+                vram_gb = float(lines[0]) / 1024.0  # MiB → GiB
+        except Exception:
+            pass
+        # RAM via psutil (falls back to os if psutil missing)
+        try:
+            import psutil
+            ram_gb = psutil.virtual_memory().total / (1024 ** 3)
+        except Exception:
+            try:
+                import ctypes
+                class MEMORYSTATUSEX(ctypes.Structure):
+                    _fields_ = [
+                        ("dwLength", ctypes.c_ulong),
+                        ("dwMemoryLoad", ctypes.c_ulong),
+                        ("ullTotalPhys", ctypes.c_ulonglong),
+                        ("ullAvailPhys", ctypes.c_ulonglong),
+                        ("ullTotalPageFile", ctypes.c_ulonglong),
+                        ("ullAvailPageFile", ctypes.c_ulonglong),
+                        ("ullTotalVirtual", ctypes.c_ulonglong),
+                        ("ullAvailVirtual", ctypes.c_ulonglong),
+                        ("ullExtendedVirtual", ctypes.c_ulonglong),
+                    ]
+                stat = MEMORYSTATUSEX()
+                stat.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
+                ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(stat))
+                ram_gb = stat.ullTotalPhys / (1024 ** 3)
+            except Exception:
+                ram_gb = 32.0  # conservative default
+
+        for min_vram, min_ram, label in _QUANT_TIERS:
+            if vram_gb >= min_vram and ram_gb >= min_ram:
+                print(f"[BSAI-LLM-Strata] Auto-select: VRAM={vram_gb:.1f}GB RAM={ram_gb:.1f}GB → {label}")
+                return label
+        return "Q2_0 (最快 / fastest)"
+
     @classmethod
     def get_preferred_quant(cls):
-        """Read the user's preferred quant label (defaults to Q2_0)."""
+        """Read the user's preferred quant label (defaults to Auto)."""
         try:
             with open(_PREF_QUANT_FILE, "r", encoding="utf-8") as f:
                 label = f.read().strip()
@@ -156,7 +217,11 @@ class StrataManager:
 
     @classmethod
     def _bat_for_quant(cls, label):
-        """Resolve a quant label to a full run-*.bat path."""
+        """Resolve a quant label to a full run-*.bat path. 'Auto' is resolved."""
+        if label == "Auto (自动适配)":
+            label = cls.detect_best_quant()
+        if label not in QUANT_OPTIONS:
+            return None
         install = cls.find_install()
         if not install:
             return None
@@ -245,6 +310,8 @@ class StrataManager:
 
         # Not up — spawn it
         label = quant_label or cls.get_preferred_quant()
+        if label == "Auto (自动适配)":
+            label = cls.detect_best_quant()
         bat = cls._bat_for_quant(label)
         print(f"[BSAI-LLM-Strata] 后端未运行，自动启动 Strata ({label})…")
         start_r = cls.start(run_script=bat)
@@ -504,6 +571,7 @@ async def _web_health(request):
         "model_dir_exists": os.path.isdir(STRATA_MODEL_DIR),
         "endpoint": DEFAULT_STRATA_BASE_URL,
         "preferred_quant": StrataManager.get_preferred_quant(),
+        "auto_detected_quant": StrataManager.detect_best_quant(),
         "quant_options": list(QUANT_OPTIONS.keys()),
     })
 
