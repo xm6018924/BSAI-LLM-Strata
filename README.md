@@ -36,16 +36,33 @@
 
 ## Installation / 安装步骤
 
-### 1. Clone Strata engine
+### 1. Install this plugin
+
+Clone into ComfyUI's `custom_nodes/` folder:
 
 ```bash
-cd ComfyUI/custom_nodes/BSAI-LLM-Strata
-git clone https://github.com/Niko1221/Strata.git Strata
+cd ComfyUI/custom_nodes
+git clone https://github.com/xm6018924/BSAI-LLM-Strata.git
 ```
 
-> This bundled `Strata/` subfolder is the **first search location**. The plugin also auto-discovers `G:\Strata`, `C:\Strata`, `D:\Strata`, `~/Strata`, etc.
+### 2. Auto-download Strata engine (first run)
 
-### 2. Download model GGUFs
+**No manual clone needed.** The plugin automatically detects if the Strata engine is missing and runs:
+
+```
+git clone https://github.com/Niko1221/Strata.git Strata/
+```
+
+You'll see this in the ComfyUI console on first use:
+
+```
+[BSAI-LLM-Strata] 首次使用，正在自动下载 Strata 引擎到 .../BSAI-LLM-Strata/Strata …
+[BSAI-LLM-Strata] Strata 引擎下载完成。
+```
+
+> If you already have Strata installed elsewhere (`G:\Strata`, `C:\Strata`, `~/Strata`, etc.), the plugin will find it automatically and skip the download.
+
+### 3. Download model GGUFs
 
 Place quantized GGUF files under:
 
@@ -55,7 +72,7 @@ ComfyUI/models/LLM/Qwen3.8-Flash-Next/
 
 Recommended quants: `Q2_0` (24 GB, lowest VRAM), `IQ3_S`, `Q4_K_M`.
 
-### 3. Run first-time setup
+### 4. One-click setup + start
 
 Open in browser (adjust port to your ComfyUI port):
 
@@ -63,9 +80,7 @@ Open in browser (adjust port to your ComfyUI port):
 http://127.0.0.1:8188/bsai/strata/setup?quant=Q2_0&context=262144&kv=q4_0
 ```
 
-This runs `setup.py` to wire the model directory to Strata's runtime format.
-
-### 4. Start Strata server
+Then:
 
 ```
 http://127.0.0.1:8188/bsai/strata/start
@@ -76,6 +91,8 @@ Wait until `/v1/models` returns `"ok": true` (model loading takes 1–3 minutes 
 ### 5. Restart ComfyUI
 
 Nodes appear under `BSAI/LLM` category.
+
+> **After first setup**, you never need to manually start Strata again. Any BSAI node that selects Strata as backend will auto-start it on demand.
 
 ---
 
