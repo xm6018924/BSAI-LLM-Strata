@@ -348,7 +348,8 @@ class StrataManager:
                 return {"ok": False, "error": f"no run-*.bat found. Scripts: {scripts}"}
             creationflags = 0
             if sys.platform == "win32":
-                creationflags = subprocess.CREATE_NEW_CONSOLE | subprocess.DETACHED_PROCESS
+                # CREATE_NEW_CONSOLE 与 DETACHED_PROCESS 互斥，不能同时用（WinError 87）
+                creationflags = subprocess.CREATE_NEW_CONSOLE
             try:
                 cls._proc = subprocess.Popen(
                     ["cmd.exe", "/c", run_script],
