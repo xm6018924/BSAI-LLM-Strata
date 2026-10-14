@@ -312,6 +312,10 @@ class StrataManager:
         label = quant_label or cls.get_preferred_quant()
         if label == "Auto (自动适配)":
             label = cls.detect_best_quant()
+        # Auto-generate json config with correct paths (fixes hardcoded paths on new machines)
+        ok_gen, msg_gen = cls._refresh_json_config(label)
+        if not ok_gen:
+            print(f"[BSAI-LLM-Strata] Warning: json config refresh failed: {msg_gen}")
         bat = cls._bat_for_quant(label)
         print(f"[BSAI-LLM-Strata] 后端未运行，自动启动 Strata ({label})…")
         start_r = cls.start(run_script=bat)
@@ -360,6 +364,126 @@ class StrataManager:
                 return {"ok": True, "pid": cls._proc.pid, "script": run_script}
             except Exception as e:
                 return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+    # ---------- auto-generate json config (fix hardcoded paths) ----------
+    _QUANT_JSON_MAP = {
+        "Q2_0 (最快 / fastest)":       ("q2_0", "Q2_0"),
+        "IQ2_XS (略好 / better)":      ("iq2_xs", "IQ2_XS"),
+        "IQ3_XXS (更好 / good)":       ("iq3_xxs", "IQ3_XXS"),
+        "IQ3_S (最好 / best quality)": ("iq3_s", "IQ3_S"),
+    }
+
+    @classmethod
+    def _refresh_json_config(cls, quant_label):
+        """Regenerate strata-<quant>.json with dynamically-resolved paths.
+        Fixes hardcoded G:\\... paths so the plugin works on any machine."""
+        install = cls.find_install()
+        if not install:
+            return False, "Strata install not found"
+
+        if quant_label not in cls._QUANT_JSON_MAP:
+            return False, f"unknown quant: {quant_label}"
+
+        quant_lower, quant_upper = cls._QUANT_JSON_MAP[quant_label]
+        json_path = os.path.join(install, f"strata-{quant_lower}.json")
+
+        # Locate gguf files in the quant subdir
+        gguf_dir = os.path.join(STRATA_MODEL_DIR, quant_upper)
+        if not os.path.isdir(gguf_dir):
+            return False, f"gguf dir not found: {gguf_dir}"
+        ggufs = sorted([f for f in os.listdir(gguf_dir) if f.endswith(".gguf")])
+        if not ggufs:
+            return False, f"no gguf files in {gguf_dir}"
+        gguf1 = os.path.join(gguf_dir, ggufs[0])
+        gguf2 = os.path.join(gguf_dir, ggufs[1]) if len(ggufs) >= 2 else gguf1
+
+        # Locate mmproj
+        mmproj = None
+        for f in os.listdir(STRATA_MODEL_DIR):
+            if f.startswith("mmproj-") and f.endswith(".gguf"):
+                mmproj = os.path.join(STRATA_MODEL_DIR, f)
+                break
+
+        # Build paths
+        pack_dir = os.path.join(STRATA_DATA_DIR, "packs", quant_lower)
+        expert_profile = os.path.join(install, "data", "expert-profile.bin")
+        mtp_dir = os.path.join(STRATA_DATA_DIR, "mtp", "rt")
+        tokenizer_dir = os.path.join(pack_dir, "tokenizer")
+        strata_exe = os.path.join(install, "engine", "strata.exe")
+        strata_vision_exe = os.path.join(install, "engine", "strata-vision.exe")
+        log_path = os.path.join(install, f"strata-{quant_lower}.log")
+        cuda_lib_dir = os.path.join(install, ".venv", "Lib", "site-packages",
+                                     "nvidia", "cu13", "bin", "x86_64")
+
+        # Read existing json to preserve user-tuned args
+        cfg = {}
+        if os.path.exists(json_path):
+            try:
+                with open(json_path, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+            except Exception:
+                cfg = {}
+
+        # Extract tuned args from existing config (spec, kv-resident, vram-reserve, max-context)
+        existing_args = cfg.get("args", [])
+        def _get_arg(flag, default):
+            try:
+                i = existing_args.index(flag)
+                if i + 1 < len(existing_args):
+                    return existing_args[i + 1]
+            except (ValueError, IndexError):
+                pass
+            return default
+
+        spec_val = _get_arg("--spec", "8")
+        kv_resident_val = _get_arg("--kv-resident", "16384")
+        vram_reserve_val = _get_arg("--vram-reserve-mib", "200")
+        max_context_val = _get_arg("--max-context", "65536")
+
+        # Build new args with correct paths + preserved tuning
+        new_args = [
+            "--pack", pack_dir,
+            "--native", gguf1,
+            "--ple-gguf", gguf2,
+            "--expert-profile", expert_profile,
+            "--expert-cache", "auto",
+            "--prefill", "auto",
+            "--spec", spec_val, "--spec-min-p", "0.5",
+            "--mtp", mtp_dir,
+            "--max-context", max_context_val,
+            "--kv", "q4_0",
+            "--kv-resident", kv_resident_val,
+            "--vision",
+            "--vram-reserve-mib", vram_reserve_val,
+        ]
+
+        new_cfg = {
+            "args": new_args,
+            "port": cfg.get("port", 8080),
+            "vision": {
+                "gpu": True,
+                "model": gguf1,
+                "exe": strata_vision_exe,
+                "mmproj": mmproj or "",
+                "max_tokens": 1024,
+            },
+            "cwd": install,
+            "gpus_asked": True,
+            "model_name": f"qwen3.8-flash-next-{quant_lower}",
+            "exe": strata_exe,
+            "log": log_path,
+            "tokenizer": tokenizer_dir,
+            "gpu": 0,
+            "lib_dirs": [cuda_lib_dir],
+        }
+
+        try:
+            with open(json_path, "w", encoding="utf-8") as f:
+                json.dump(new_cfg, f, indent=4, ensure_ascii=False)
+            print(f"[BSAI-LLM-Strata] Auto-generated config: {json_path}")
+            return True, json_path
+        except Exception as e:
+            return False, f"write failed: {e}"
 
     # ---------- one-time setup ----------
     @classmethod
