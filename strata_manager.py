@@ -1,0 +1,460 @@
+"""BSAI-LLM-Strata: local Strata (Qwen3.8-Flash-Next 125B MoE) integration for ComfyUI.
+
+Exposes:
+  - StrataManager: process lifecycle + health probe (auto-detect running Strata at 127.0.0.1:8080)
+  - BSAI_LLM_Call: chat completion node
+  - BSAI_LLM_VisionDescribe: image -> text (uses mmproj)
+  - BSAI_LLM_PromptEnhance: prompt enhancement
+  - Web routes: /bsai/strata/health, /bsai/strata/config
+"""
+import os
+import sys
+import json
+import time
+import shutil
+import socket as _socket
+import http.client as _http_client
+import subprocess
+import urllib.request
+import urllib.error
+from urllib.parse import urlparse as _urlparse
+import threading
+
+import folder_paths
+
+
+# ---------------------------------------------------------------------------
+# Blocking-socket HTTP helper (avoids WinError 10035 under Python 3.14 asyncio)
+# ---------------------------------------------------------------------------
+def _blocking_get_json(url, timeout=5.0, headers=None):
+    """GET a JSON URL using an explicit blocking socket (bypasses urllib)."""
+    p = _urlparse(url)
+    host, port = p.hostname, p.port or 80
+    s = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+    s.settimeout(timeout)
+    s.setblocking(True)
+    s.connect((host, port))
+    try:
+        conn = _http_client.HTTPConnection(host, port, timeout=timeout)
+        conn.sock = s
+        h = {"Accept": "application/json"}
+        if headers:
+            h.update(headers)
+        conn.request("GET", p.path or "/", headers=h)
+        r = conn.getresponse()
+        body = r.read().decode("utf-8", "replace")
+        return r.status, body
+    finally:
+        try:
+            s.close()
+        except Exception:
+            pass
+
+
+def _blocking_post_json(url, body_bytes, timeout=60.0, headers=None):
+    """POST JSON using an explicit blocking socket."""
+    p = _urlparse(url)
+    host, port = p.hostname, p.port or 80
+    s = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+    s.settimeout(timeout)
+    s.setblocking(True)
+    s.connect((host, port))
+    try:
+        conn = _http_client.HTTPConnection(host, port, timeout=timeout)
+        conn.sock = s
+        h = {"Content-Type": "application/json", "Content-Length": str(len(body_bytes))}
+        if headers:
+            h.update(headers)
+        conn.request("POST", p.path or "/", body=body_bytes, headers=h)
+        r = conn.getresponse()
+        body = r.read().decode("utf-8", "replace")
+        return r.status, body
+    finally:
+        try:
+            s.close()
+        except Exception:
+            pass
+
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+DEFAULT_STRATA_HOST = "127.0.0.1"
+DEFAULT_STRATA_PORT = 8080
+DEFAULT_STRATA_BASE_URL = f"http://{DEFAULT_STRATA_HOST}:{DEFAULT_STRATA_PORT}/v1"
+DEFAULT_STRATA_MODEL = "qwen3.8-flash-next"
+
+# Where the user may have cloned https://github.com/Niko1221/Strata
+# Priority 0: the bundled copy shipped with this plugin (one-stop install).
+_PLUGIN_DIR = os.path.dirname(os.path.abspath(__file__))
+_STRATA_SEARCH_PATHS = [
+    os.path.join(_PLUGIN_DIR, "Strata"),  # bundled runtime
+    r"G:\Strata",
+    r"C:\Strata",
+    r"D:\Strata",
+    r"E:\Strata",
+    r"F:\Strata",
+    r"G:\BSAI-ComfyUI-intel-XPU-GPU-NPU-aki\Strata",
+    r"G:\BSAI\Strata",
+    os.path.expanduser(r"~\Strata"),
+    os.path.expanduser(r"~\ProgramMine\Strata"),
+]
+
+# Where the model GGUFs live (already on disk per user)
+STRATA_MODEL_DIR = os.path.join(folder_paths.models_dir, "LLM", "Qwen3.8-Flash-Next")
+
+
+# ---------------------------------------------------------------------------
+# StrataManager
+# ---------------------------------------------------------------------------
+class StrataManager:
+    """Lightweight manager: probe health, optionally spawn Strata if a
+    run-<quant>.bat script is found. We do NOT auto-spawn by default because
+    loading a 125B MoE takes 1-3 minutes and locks VRAM/RAM."""
+
+    _lock = threading.Lock()
+    _proc = None
+    _detected_install = None
+
+    # ---------- discovery ----------
+    @classmethod
+    def find_install(cls):
+        if cls._detected_install is not None:
+            return cls._detected_install
+        for p in _STRATA_SEARCH_PATHS:
+            if os.path.isdir(p) and (
+                os.path.exists(os.path.join(p, "START-HERE.bat"))
+                or os.path.exists(os.path.join(p, "setup.py"))
+            ):
+                cls._detected_install = p
+                return p
+        return None
+
+    @classmethod
+    def list_run_scripts(cls):
+        install = cls.find_install()
+        if not install:
+            return []
+        out = []
+        for f in os.listdir(install):
+            low = f.lower()
+            if low.startswith("run-") and low.endswith(".bat"):
+                out.append(os.path.join(install, f))
+        return sorted(out)
+
+    # ---------- health ----------
+    @classmethod
+    def health(cls, timeout=1.5):
+        url = f"http://{DEFAULT_STRATA_HOST}:{DEFAULT_STRATA_PORT}/v1/models"
+        try:
+            status, body = _blocking_get_json(url, timeout=timeout)
+            data = json.loads(body)
+            return {"ok": True, "models": [m.get("id", "?") for m in data.get("data", [])]}
+        except Exception as e:
+            return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+    # ---------- ensure running (auto-start + wait) ----------
+    @classmethod
+    def ensure_running(cls, wait_timeout=240.0, poll_interval=3.0):
+        """Block until Strata is reachable. If not running, spawn the first run-*.bat.
+
+        Returns (ok, message). Called by any BSAI node before hitting /v1.
+        """
+        h = cls.health(timeout=1.0)
+        if h.get("ok"):
+            return True, "already_running"
+
+        # Not up 鈥?spawn it
+        print("[BSAI-LLM-Strata] 鍚庣鏈繍琛岋紝鑷姩鍚姩 Strata鈥?)
+        start_r = cls.start()
+        if not start_r.get("ok"):
+            return False, f"鍚姩澶辫触: {start_r.get('error')}"
+        if start_r.get("already_running"):
+            # health was racy; re-probe
+            pass
+
+        # Wait for model to load (125B MoE q2_0 takes 60~180s)
+        deadline = time.time() + wait_timeout
+        last_err = "?"
+        while time.time() < deadline:
+            time.sleep(poll_interval)
+            h = cls.health(timeout=2.0)
+            if h.get("ok"):
+                print(f"[BSAI-LLM-Strata] 鍚庣宸插氨缁? {h.get('models')}")
+                return True, "started_and_ready"
+            last_err = h.get("error", "?")
+        return False, f"绛夊緟瓒呮椂({wait_timeout:.0f}s): {last_err}"
+
+    # ---------- spawn ----------
+    @classmethod
+    def start(cls, run_script=None):
+        """Launch a run-<quant>.bat in a detached console. Non-blocking."""
+        with cls._lock:
+            h = cls.health(timeout=0.5)
+            if h.get("ok"):
+                return {"ok": True, "already_running": True}
+            scripts = cls.list_run_scripts()
+            if run_script is None and scripts:
+                run_script = scripts[0]
+            if not run_script or not os.path.exists(run_script):
+                return {"ok": False, "error": f"no run-*.bat found. Scripts: {scripts}"}
+            creationflags = 0
+            if sys.platform == "win32":
+                creationflags = subprocess.CREATE_NEW_CONSOLE | subprocess.DETACHED_PROCESS
+            try:
+                cls._proc = subprocess.Popen(
+                    ["cmd.exe", "/c", run_script],
+                    cwd=os.path.dirname(run_script),
+                    creationflags=creationflags,
+                    close_fds=True,
+                )
+                return {"ok": True, "pid": cls._proc.pid, "script": run_script}
+            except Exception as e:
+                return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+    # ---------- one-time setup ----------
+    @classmethod
+    def setup(cls, quant="Q2_0", context=262144, kv="q4_0"):
+        """Run setup.py against the discovered Strata install + the BSAI model dir.
+        This is the equivalent of:
+          python setup.py --family qwen --model <quant> \
+                --gguf-dir <STRATA_MODEL_DIR> --context <context> --kv <kv> \
+                --no-start --yes
+        """
+        install = cls.find_install()
+        if not install:
+            return {"ok": False, "error": "Strata source not found (no START-HERE.bat)."}
+        if not os.path.isdir(STRATA_MODEL_DIR):
+            return {"ok": False, "error": f"Model dir missing: {STRATA_MODEL_DIR}"}
+        setup_py = os.path.join(install, "setup.py")
+        if not os.path.exists(setup_py):
+            return {"ok": False, "error": f"setup.py not found at {setup_py}"}
+        args = [
+            sys.executable, setup_py,
+            "--family", "qwen",
+            "--model", str(quant),
+            "--gguf-dir", STRATA_MODEL_DIR,
+            "--context", str(context),
+            "--kv", str(kv),
+            "--no-start", "--yes",
+        ]
+        try:
+            p = subprocess.Popen(
+                args, cwd=install,
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                text=True, encoding="utf-8", errors="replace",
+            )
+            out, _ = p.communicate(timeout=600)
+            return {"ok": p.returncode == 0, "returncode": p.returncode, "output": out[-4000:]}
+        except Exception as e:
+            return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+    # ---------- HTTP call ----------
+    @staticmethod
+    def chat(messages, model=DEFAULT_STRATA_MODEL, max_tokens=1024,
+             temperature=0.7, timeout=600):
+        url = f"{DEFAULT_STRATA_BASE_URL}/chat/completions"
+        body = json.dumps({
+            "model": model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "stream": False,
+        }).encode("utf-8")
+        status, raw = _blocking_post_json(
+            url, body, timeout=timeout,
+            headers={"Authorization": "Bearer strata"},
+        )
+        if status >= 400:
+            raise RuntimeError(f"Strata HTTP {status}: {raw[:300]}")
+        return json.loads(raw)
+
+
+# ---------------------------------------------------------------------------
+# ComfyUI nodes
+# ---------------------------------------------------------------------------
+class BSAI_LLM_Call:
+    """One-shot chat completion via local Strata."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "prompt": ("STRING", {"multiline": True, "dynamicPrompts": False,
+                                      "tooltip": "User prompt / 鐢ㄦ埛鎻愮ず璇?}),
+                "system": ("STRING", {"multiline": True, "default": "You are a helpful assistant.",
+                                     "tooltip": "System prompt / 绯荤粺鎻愮ず璇?}),
+                "max_tokens": ("INT", {"default": 1024, "min": 64, "max": 32768, "step": 64}),
+                "temperature": ("FLOAT", {"default": 0.7, "min": 0.0, "max": 2.0, "step": 0.05}),
+            },
+            "optional": {
+                "model": ("STRING", {"default": DEFAULT_STRATA_MODEL,
+                                    "tooltip": "Model name served by Strata"}),
+            },
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("text",)
+    FUNCTION = "execute"
+    CATEGORY = "BSAI/LLM"
+    DESCRIPTION = "Call local Qwen3.8-Flash-Next via Strata (OpenAI-compatible)"
+
+    def execute(self, prompt, system, max_tokens, temperature, model=DEFAULT_STRATA_MODEL):
+        msgs = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": prompt},
+        ]
+        try:
+            r = StrataManager.chat(msgs, model=model, max_tokens=max_tokens,
+                                   temperature=temperature)
+            text = r["choices"][0]["message"]["content"]
+        except Exception as e:
+            text = f"[BSAI-LLM-Strata ERROR] {type(e).__name__}: {e}\n" \
+                   f"Is Strata running at http://127.0.0.1:8080? Check /bsai/strata/health."
+        return (text,)
+
+
+class BSAI_LLM_VisionDescribe:
+    """Image -> text description. Sends base64 data URL to Strata's mmproj."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "prompt": ("STRING", {"multiline": True, "default": "Describe this image in detail, in Chinese.",
+                                     "tooltip": "Question/description prompt"}),
+                "max_tokens": ("INT", {"default": 512, "min": 64, "max": 8192, "step": 64}),
+            },
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("description",)
+    FUNCTION = "execute"
+    CATEGORY = "BSAI/LLM"
+    DESCRIPTION = "Vision: ask Qwen3.8-Flash-Next about an input image (uses mmproj)"
+
+    def execute(self, image, prompt, max_tokens):
+        import base64
+        import io
+        import numpy as np
+        from PIL import Image as PILImage
+
+        # ComfyUI IMAGE is [B,H,W,C] float0..1; take frame 0
+        arr = (np.clip(image[0].cpu().numpy(), 0.0, 1.0) * 255).astype(np.uint8)
+        pil = PILImage.fromarray(arr)
+        buf = io.BytesIO()
+        pil.save(buf, format="JPEG", quality=85)
+        b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+        data_url = f"data:image/jpeg;base64,{b64}"
+
+        msgs = [{
+            "role": "user",
+            "content": [
+                {"type": "text", "text": prompt},
+                {"type": "image_url", "image_url": {"url": data_url}},
+            ],
+        }]
+        try:
+            r = StrataManager.chat(msgs, max_tokens=max_tokens, temperature=0.2)
+            text = r["choices"][0]["message"]["content"]
+        except Exception as e:
+            text = f"[BSAI-LLM-Strata Vision ERROR] {type(e).__name__}: {e}"
+        return (text,)
+
+
+class BSAI_LLM_PromptEnhance:
+    """Wrap a rough prompt into a richer cinematic prompt via local LLM."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "raw_prompt": ("STRING", {"multiline": True, "dynamicPrompts": False}),
+                "style": (["cinematic", "anime", "photoreal", "advertisement", "documentary"],),
+                "language": (["zh", "en", "zh+en"],),
+                "max_tokens": ("INT", {"default": 320, "min": 64, "max": 2048, "step": 32}),
+            },
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("enhanced",)
+    FUNCTION = "execute"
+    CATEGORY = "BSAI/LLM"
+
+    def execute(self, raw_prompt, style, language, max_tokens):
+        sys = (
+            "You are a master visual prompt engineer for video generation. "
+            "Rewrite the user's rough idea into a dense, concrete, cinematic prompt. "
+            "Add camera, lighting, subject detail, mood, and negative aspects. "
+            "Do not explain, output only the rewritten prompt."
+        )
+        user = f"Style: {style}. Language: {language}.\nRough idea: {raw_prompt}"
+        try:
+            r = StrataManager.chat(
+                [{"role": "system", "content": sys},
+                 {"role": "user", "content": user}],
+                max_tokens=max_tokens, temperature=0.8,
+            )
+            text = r["choices"][0]["message"]["content"].strip()
+        except Exception as e:
+            text = f"[BSAI-LLM-Strata Enhance ERROR] {type(e).__name__}: {e}"
+        return (text,)
+
+
+# ---------------------------------------------------------------------------
+# Web routes
+# ---------------------------------------------------------------------------
+async def _web_health(request):
+    from aiohttp import web
+    h = StrataManager.health()
+    install = StrataManager.find_install()
+    return web.json_response({
+        "ok": h.get("ok"),
+        "detail": h,
+        "install_dir": install,
+        "run_scripts": StrataManager.list_run_scripts(),
+        "model_dir": STRATA_MODEL_DIR,
+        "model_dir_exists": os.path.isdir(STRATA_MODEL_DIR),
+        "endpoint": DEFAULT_STRATA_BASE_URL,
+    })
+
+
+async def _web_start(request):
+    from aiohttp import web
+    script = request.query.get("script")
+    r = StrataManager.start(run_script=script)
+    return web.json_response(r)
+
+
+async def _web_setup(request):
+    from aiohttp import web
+    quant = request.query.get("quant", "Q2_0")
+    context = int(request.query.get("context", "262144"))
+    kv = request.query.get("kv", "q4_0")
+    r = StrataManager.setup(quant=quant, context=context, kv=kv)
+    return web.json_response(r)
+
+
+def setup_web_routes(app):
+    app.router.add_get("/bsai/strata/health", _web_health)
+    app.router.add_get("/bsai/strata/start", _web_start)
+    app.router.add_get("/bsai/strata/setup", _web_setup)
+
+
+# ---------------------------------------------------------------------------
+# ComfyUI registration
+# ---------------------------------------------------------------------------
+NODE_CLASS_MAPPINGS = {
+    "BSAI_LLM_Call": BSAI_LLM_Call,
+    "BSAI_LLM_VisionDescribe": BSAI_LLM_VisionDescribe,
+    "BSAI_LLM_PromptEnhance": BSAI_LLM_PromptEnhance,
+}
+
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "BSAI_LLM_Call": "BSAI LLM Call (Strata / Qwen3.8-Flash-Next)",
+    "BSAI_LLM_VisionDescribe": "BSAI LLM Vision Describe (Strata mmproj)",
+    "BSAI_LLM_PromptEnhance": "BSAI LLM Prompt Enhance (Strata)",
+}
+
+__all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "StrataManager",
+           "setup_web_routes", "DEFAULT_STRATA_BASE_URL", "DEFAULT_STRATA_MODEL"]
