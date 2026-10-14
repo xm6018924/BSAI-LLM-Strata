@@ -62,15 +62,31 @@ You'll see this in the ComfyUI console on first use:
 
 > If you already have Strata installed elsewhere (`G:\Strata`, `C:\Strata`, `~/Strata`, etc.), the plugin will find it automatically and skip the download.
 
-### 3. Download model GGUFs
+### 3. Download model files from network drive
 
-Place quantized GGUF files under:
+**One unified folder.** Download everything from the network drive and extract into:
 
 ```
 ComfyUI/models/LLM/Qwen3.8-Flash-Next/
 ```
 
-Recommended quants: `Q2_0` (24 GB, lowest VRAM), `IQ3_S`, `Q4_K_M`.
+Final directory layout:
+
+```
+models/LLM/Qwen3.8-Flash-Next/
+├── Qwen3.8-Flash-Next-GSQ-RCO-Q2_0-00001-of-00002.gguf   (~14 GB)
+├── Qwen3.8-Flash-Next-GSQ-RCO-Q2_0-00002-of-00002.gguf   (~10 GB)
+├── mmproj-Qwen3.8-Flash-Next-BF16.gguf                    (~1.5 GB, vision)
+├── mtp-q2_0.gguf                                          (~2 GB, spec decoding)
+├── rt/                                                    (expert cache, ~1 GB)
+└── Strata-data/                                           (pre-converted runtime, ~6 GB)
+    ├── packs/q2_0/                                       (packed experts + tokenizer)
+    └── mtp/rt/                                           (MTP tensors)
+```
+
+Total download: **~24 GB** for text-only, **~26 GB** with vision.
+
+> **You do NOT need to run setup.py.** The `Strata-data/` folder is pre-converted — just extract it alongside the GGUFs.
 
 ### 4. One-click setup + start
 
