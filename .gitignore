@@ -3,9 +3,6 @@ __pycache__/
 *.pyo
 .venv/
 
-# Vendored third-party Strata runtime (Niko1221/Strata) 鈥?NOT shipped in this repo.
-Strata/
-
 # Local model/data artifacts (huge, user-specific)
 Strata-data/
 setup.log
