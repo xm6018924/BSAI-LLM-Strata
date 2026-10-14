@@ -18,6 +18,7 @@
 
 - **OpenAI-compatible endpoint** at `http://127.0.0.1:8080/v1` — any ComfyUI node that speaks OpenAI API can point here directly.
 - **Auto-start on demand** — any BSAI node that selects Strata as its backend will probe health first; if Strata isn't running, it automatically launches `run-<quant>.bat` and waits (up to 4 minutes) for the 125B model to load before sending the first request.
+- **Auto-generated config paths** — no more hardcoded `G:\...` paths. On startup, the plugin scans your actual model directory, finds the GGUF files, mmproj, packs, and MTP tensors, and regenerates `strata-<quant>.json` with correct absolute paths for your machine. Just drop the model folder in `models/LLM/Qwen3.8-Flash-Next/` and it works.
 - **3 built-in ComfyUI nodes**:
   - `BSAI LLM Call` — plain chat completion
   - `BSAI LLM Vision Describe` — image → text (via mmproj vision projector)
@@ -260,6 +261,17 @@ This plugin code is MIT. The bundled [Strata](https://github.com/Niko1221/Strata
 ---
 
 ## Changelog
+
+### v1.4.0 (2026-10-15) — Auto-path config generation + Speed tuning
+- **English**: On startup, the plugin now auto-scans your model directory and regenerates `strata-<quant>.json` with correct absolute paths. No more manually editing hardcoded `G:\...` paths — just extract the model folder into `models/LLM/Qwen3.8-Flash-Next/` and it works on any machine.
+- **中文**: 启动时自动扫描模型目录，动态生成 `strata-<quant>.json` 配置，所有路径自动适配当前电脑。再也不用手动改硬编码的 `G:\...` 路径——把模型文件夹解压到 `models/LLM/Qwen3.8-Flash-Next/` 即可在任意电脑上运行。
+- **Speed tuning / 性能调优** (preserved in auto-generated config):
+  - `--max-context`: 262144 → 65536 (saves ~7 GB KV cache VRAM)
+  - `--spec`: 4 → 8 (longer speculative draft, +20-30% generation speed)
+  - `--kv-resident`: 32768 → 16384 (frees VRAM for expert cache)
+  - `--vram-reserve-mib`: 700 → 200 (more VRAM for experts)
+- **Auto-tier adjustment**: 24 GB VRAM now picks IQ2_XS (speed-first) instead of IQ3_S (quality-first). Users can still manually select any quant in the dropdown.
+- **WinError 87 fix**: removed conflicting `DETACHED_PROCESS` flag (mutually exclusive with `CREATE_NEW_CONSOLE`).
 
 ### v1.3.0 (2026-10-14) — Quant selector + Auto hardware detection
 - **新增量化选择下拉菜单** / Added quant dropdown in BSAI LLM Call node:
