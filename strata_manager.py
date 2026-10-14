@@ -117,6 +117,29 @@ class StrataManager:
 
     # ---------- discovery ----------
     @classmethod
+    def ensure_strata_installed(cls):
+        """Auto-clone Strata engine into the plugin's Strata/ subfolder if missing.
+        Returns the install path, or None on failure."""
+        target = os.path.join(_PLUGIN_DIR, "Strata")
+        # Already there?
+        if os.path.isdir(target) and os.path.exists(os.path.join(target, "setup.py")):
+            return target
+        # Clone it
+        try:
+            os.makedirs(target, exist_ok=True)
+            print(f"[BSAI-LLM-Strata] 首次使用，正在自动下载 Strata 引擎到 {target} …")
+            subprocess.run(
+                ["git", "clone", "--depth", "1",
+                 "https://github.com/Niko1221/Strata.git", target],
+                check=True, timeout=300,
+            )
+            print("[BSAI-LLM-Strata] Strata 引擎下载完成。")
+            return target
+        except Exception as e:
+            print(f"[BSAI-LLM-Strata] 自动下载 Strata 失败: {e}")
+            return None
+
+    @classmethod
     def find_install(cls):
         if cls._detected_install is not None:
             return cls._detected_install
@@ -127,6 +150,11 @@ class StrataManager:
             ):
                 cls._detected_install = p
                 return p
+        # Not found anywhere — auto-clone into plugin dir
+        auto = cls.ensure_strata_installed()
+        if auto:
+            cls._detected_install = auto
+            return auto
         return None
 
     @classmethod
@@ -163,11 +191,11 @@ class StrataManager:
         if h.get("ok"):
             return True, "already_running"
 
-        # Not up 鈥?spawn it
-        print("[BSAI-LLM-Strata] 鍚庣鏈繍琛岋紝鑷姩鍚姩 Strata鈥?)
+        # Not up — spawn it
+        print("[BSAI-LLM-Strata] 后端未运行，自动启动 Strata…")
         start_r = cls.start()
         if not start_r.get("ok"):
-            return False, f"鍚姩澶辫触: {start_r.get('error')}"
+            return False, f"启动失败: {start_r.get('error')}"
         if start_r.get("already_running"):
             # health was racy; re-probe
             pass
@@ -179,10 +207,10 @@ class StrataManager:
             time.sleep(poll_interval)
             h = cls.health(timeout=2.0)
             if h.get("ok"):
-                print(f"[BSAI-LLM-Strata] 鍚庣宸插氨缁? {h.get('models')}")
+                print(f"[BSAI-LLM-Strata] 后端已就绪: {h.get('models')}")
                 return True, "started_and_ready"
             last_err = h.get("error", "?")
-        return False, f"绛夊緟瓒呮椂({wait_timeout:.0f}s): {last_err}"
+        return False, f"等待超时({wait_timeout:.0f}s): {last_err}"
 
     # ---------- spawn ----------
     @classmethod
@@ -280,9 +308,9 @@ class BSAI_LLM_Call:
         return {
             "required": {
                 "prompt": ("STRING", {"multiline": True, "dynamicPrompts": False,
-                                      "tooltip": "User prompt / 鐢ㄦ埛鎻愮ず璇?}),
+                                      "tooltip": "User prompt / 用户提示词"}),
                 "system": ("STRING", {"multiline": True, "default": "You are a helpful assistant.",
-                                     "tooltip": "System prompt / 绯荤粺鎻愮ず璇?}),
+                                     "tooltip": "System prompt / 系统提示词"}),
                 "max_tokens": ("INT", {"default": 1024, "min": 64, "max": 32768, "step": 64}),
                 "temperature": ("FLOAT", {"default": 0.7, "min": 0.0, "max": 2.0, "step": 0.05}),
             },
