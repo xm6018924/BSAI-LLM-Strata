@@ -261,6 +261,27 @@ This plugin code is MIT. The bundled [Strata](https://github.com/Niko1221/Strata
 
 ## Changelog
 
-- **v1.2.0** (2026-10-14): Unified model directory (Strata-data moved into models/LLM/Qwen3.8-Flash-Next/), all BSAI plugins patched with blocking socket fix, comprehensive bilingual README
-- **v1.1.0**: Auto-start on demand (`ensure_running`), WinError 10035 blocking-socket fix
-- **v1.0.0**: Initial release — health/start/setup web routes, 3 nodes, OpenAI-compatible proxy
+### v1.3.0 (2026-10-14) — Quant selector + Auto hardware detection
+- **新增量化选择下拉菜单** / Added quant dropdown in BSAI LLM Call node:
+  - `Auto (自动适配)` — detects VRAM & RAM via nvidia-smi + psutil, picks best quant
+  - `Q2_0` — fastest, lowest VRAM (~24 GB)
+  - `IQ2_XS` — slightly better quality, similar speed
+  - `IQ3_XXS` — better quality, slower
+  - `IQ3_S` — best quality (near BF16), needs ≥24 GB VRAM + ≥64 GB RAM
+- **Auto-select tiers**: ≥24GB VRAM+64GB RAM → IQ3_S; ≥20GB+48GB → IQ3_XXS; ≥16GB+40GB → IQ2_XS; else → Q2_0
+- **Web endpoint**: `GET /bsai/strata/set_quant?quant=<label>` to set global preferred quant
+- **Built 4 quant configs + run scripts**: `strata-q2_0.json`, `strata-iq2_xs.json`, `strata-iq3_xxs.json`, `strata-iq3_s.json` + matching `run-*.bat`
+- **Converted 3 extra packs** via `tools/iq_pack.py`: `packs/iq2_xs`, `packs/iq3_xxs`, `packs/iq3_s` (abliterated GGUFs)
+- **Restored BSAI Strata backend** in BSAI-Qwen-Prompt-Enhancer (was overwritten by upstream update)
+- **Cleanup**: deleted `.done` markers + duplicate `Q2_0/` subdir (freed 124.5 GB)
+
+### v1.2.0 (2026-10-14) — Unified model directory
+- Strata-data moved into `models/LLM/Qwen3.8-Flash-Next/Strata-data/` (single download)
+- All BSAI plugins patched with blocking-socket HTTP (WinError 10035 fix)
+- Comprehensive bilingual README
+
+### v1.1.0
+- Auto-start on demand (`ensure_running`), WinError 10035 blocking-socket fix
+
+### v1.0.0
+- Initial release — health/start/setup web routes, 3 nodes, OpenAI-compatible proxy
