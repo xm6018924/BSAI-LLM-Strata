@@ -116,8 +116,8 @@ DEFAULT_QUANT_LABEL = "Auto (自动适配)"
 
 # Hardware tiers for auto-select: (min_vram_gb, min_ram_gb, label)
 _QUANT_TIERS = [
-    (24, 64, "IQ3_S (最好 / best quality)"),
-    (20, 48, "IQ3_XXS (更好 / good)"),
+    (32, 64, "IQ3_S (最好 / best quality)"),
+    (24, 48, "IQ3_XXS (更好 / good)"),
     (16, 40, "IQ2_XS (略好 / better)"),
     (0,  0,  "Q2_0 (最快 / fastest)"),  # always fits
 ]
