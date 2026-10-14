@@ -49,30 +49,56 @@
 
 ### Step 1: Install this plugin / 安装插件
 
-Clone into ComfyUI's `custom_nodes/` folder:
+**English**: The Strata engine is bundled as a **git submodule**. To download everything in one step, clone with `--recursive`:
 
 ```bash
 cd ComfyUI/custom_nodes
-git clone https://github.com/xm6018924/BSAI-LLM-Strata.git
+
+# If the folder already exists, delete it first:
+Remove-Item -Recurse -Force "BSAI-LLM-Strata"   # PowerShell
+# or: rm -rf BSAI-LLM-Strata                    # Bash
+
+# Clone with submodule (auto-downloads Strata engine)
+git clone --recursive https://github.com/xm6018924/BSAI-LLM-Strata.git
 ```
 
-Or download the ZIP and extract it into `custom_nodes/BSAI-LLM-Strata/`.
+**中文**: Strata 引擎作为 **git submodule** 包含在本插件仓库里。用 `--recursive` 参数克隆即可一次性下载全部：
+
+```bash
+cd ComfyUI/custom_nodes
+
+# 如果目录已存在，先删除：
+Remove-Item -Recurse -Force "BSAI-LLM-Strata"   # PowerShell
+# 或: rm -rf BSAI-LLM-Strata                    # Bash
+
+# 带 submodule 克隆（自动下载 Strata 引擎）
+git clone --recursive https://github.com/xm6018924/BSAI-LLM-Strata.git
+```
+
+**Other install methods / 其他安装方式:**
+- **ComfyUI Manager**: Search `BSAI-LLM-Strata` → Install. The plugin auto-downloads the engine in background on first ComfyUI startup.
+- **ZIP download**: Extract into `custom_nodes/BSAI-LLM-Strata/`. The plugin auto-downloads the engine in background on first ComfyUI startup.
 
 ---
 
 ### Step 2: Auto-download Strata engine / 自动下载 Strata 引擎
 
-**No manual clone needed.** On first use, the plugin automatically detects if the Strata engine is missing and runs:
+**English**: If you cloned with `--recursive`, the engine is already downloaded — skip this step.
+
+If you installed via Manager or ZIP (no `--recursive`), the plugin automatically detects the missing engine and downloads it in the background on first ComfyUI startup:
 
 ```
-git clone https://github.com/Niko1221/Strata.git Strata/
+[BSAI-LLM-Strata] Strata engine not found, auto-downloading in background…
+[BSAI-LLM-Strata] Strata engine auto-download complete: .../Strata
 ```
 
-You'll see this in the ComfyUI console:
+**中文**: 如果你用 `--recursive` 克隆，引擎已经下载好了，跳过此步。
+
+如果你通过 Manager 或 ZIP 安装（没用 `--recursive`），插件会在首次启动 ComfyUI 时后台自动检测并下载引擎：
 
 ```
-[BSAI-LLM-Strata] 首次使用，正在自动下载 Strata 引擎到 .../BSAI-LLM-Strata/Strata …
-[BSAI-LLM-Strata] Strata 引擎下载完成。
+[BSAI-LLM-Strata] Strata engine not found, auto-downloading in background…
+[BSAI-LLM-Strata] Strata engine auto-download complete: .../Strata
 ```
 
 > If you already have Strata installed elsewhere (`G:\Strata`, `C:\Strata`, `~/Strata`, etc.), the plugin will find it automatically and skip the download.
