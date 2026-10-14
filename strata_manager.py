@@ -363,7 +363,7 @@ class StrataManager:
 
     # ---------- one-time setup ----------
     @classmethod
-    def setup(cls, quant="Q2_0", context=262144, kv="q4_0"):
+    def setup(cls, quant="Q2_0", context=65536, kv="q4_0"):
         """Run setup.py against the discovered Strata install + the BSAI model dir.
         This is the equivalent of:
           python setup.py --family qwen --model <quant> \
@@ -597,7 +597,7 @@ async def _web_set_quant(request):
 async def _web_setup(request):
     from aiohttp import web
     quant = request.query.get("quant", "Q2_0")
-    context = int(request.query.get("context", "262144"))
+    context = int(request.query.get("context", "65536"))
     kv = request.query.get("kv", "q4_0")
     r = StrataManager.setup(quant=quant, context=context, kv=kv)
     return web.json_response(r)
