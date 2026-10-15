@@ -932,7 +932,21 @@ function addFiles(files) {
             attachments.push({kind: "image", name: `${f.name} @ ${frame.timestamp}s`, url: frame.data});
           });
           renderAttachments();
-          toast("ok", "Video processed", `Extracted ${result.frames.length} keyframes from ${f.name}`);
+          // Auto-fill video reverse prompt template
+          const reversePrompt = `请根据这些视频关键帧，帮我反推出生成这个视频的详细提示词（Prompt）。
+
+请按照以下格式输出：
+1. **主体描述**：视频中的主要人物/物体是什么？外观、服装、特征？
+2. **动作与运动**：主体在做什么动作？运动轨迹是怎样的？
+3. **场景环境**：背景是什么场景？室内/室外？有什么物体？
+4. **艺术风格**：画面风格是什么？写实/动漫/油画/赛博朋克等？
+5. **镜头运动**：镜头是固定的？推拉摇移？特写还是全景？
+6. **光影色调**：光线是怎样的？明亮/昏暗？暖色调/冷色调？
+7. **完整Prompt**：把以上所有内容整合成一个可以直接用于 AnimateDiff / SVD 等视频生成模型的完整提示词。`;
+          $("input").value = reversePrompt;
+          autosize();
+          $("input").focus();
+          toast("ok", "Video ready", `Extracted ${result.frames.length} keyframes. Reverse prompt template filled in the input box.`);
         } else {
           attachments.push({kind: "file", name: f.name, text: `[Video file: ${f.name}, size: ${(f.size / 1024 / 1024).toFixed(1)} MB]`});
           renderAttachments();
