@@ -340,6 +340,35 @@ The auto-download needs `git` installed. If `git clone` fails (e.g. GitHub block
 
 Make sure the GGUF files are in `ComfyUI/models/LLM/Qwen3.8-Flash-Next/` and the `Strata-data/` folder is in the same directory. The plugin auto-detects this path.
 
+### ComfyUI window closes automatically after starting / ComfyUI 窗口启动后自动关闭
+
+**English / 中文**:
+
+**Symptom / 症状**: After ComfyUI starts, the BSAI launcher window closes automatically, but a separate "Strata" window appears in the background.
+
+**原因**: Strata 服务启动时会加载约 40 GB 模型到内存，占用大量系统资源。如果你的内存刚好不够（比如 64 GB 内存同时运行 ComfyUI + Strata），ComfyUI 可能会因为内存不足而崩溃退出。
+
+**Solution / 解决方法**:
+
+1. **Don't worry — Strata is still running.** Look for the separate "Strata" console window in your taskbar. It's loading the model (1-3 minutes on first run).
+
+   **别慌——Strata 服务还在后台运行。** 在任务栏找到单独的 "Strata" 控制台窗口，它正在加载模型（首次需要 1-3 分钟）。
+
+2. **Wait for Strata to finish loading.** You'll see `Strata listening on http://127.0.0.1:8080` in that window.
+
+   **等 Strata 加载完成。** 窗口里会显示 `Strata listening on http://127.0.0.1:8080`。
+
+3. **Then restart ComfyUI normally.** Now that Strata is already running (and loaded), ComfyUI won't need to start it again, and there won't be a memory spike.
+
+   **然后正常重启 ComfyUI。** 现在 Strata 已经在运行（模型已加载），ComfyUI 启动时不会再触发内存峰值，就不会崩溃了。
+
+**Alternative / 备用方案**: If you want to avoid this entirely, disable auto-start on plugin load:
+- 如果你想完全避免这个问题，可以关闭插件启动时的自动启动功能：
+- Open `BSAI-LLM-Strata/__init__.py`
+- Find `Step 4: auto-start Strata service in background`
+- Comment out that block (add `#` at the start of each line)
+- Then manually start Strata via `run-q2_0.bat` BEFORE starting ComfyUI
+
 ---
 
 ## License
