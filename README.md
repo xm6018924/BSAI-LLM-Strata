@@ -16,18 +16,15 @@
 
 ## Features / 功能
 
+- **One-click install**: Download the full model package from the network drive, extract it, install the plugin — everything else is automatic.
+- **Engine auto-copy**: The plugin automatically detects the Strata engine binary in your model directory and copies it to the right place.
 - **OpenAI-compatible endpoint** at `http://127.0.0.1:8080/v1` — any ComfyUI node that speaks OpenAI API can point here directly.
 - **Auto-start on demand** — any BSAI node that selects Strata as its backend will probe health first; if Strata isn't running, it automatically launches `run-<quant>.bat` and waits (up to 4 minutes) for the 125B model to load before sending the first request.
-- **Auto-generated config paths** — no more hardcoded `G:\...` paths. On startup, the plugin scans your actual model directory, finds the GGUF files, mmproj, packs, and MTP tensors, and regenerates `strata-<quant>.json` with correct absolute paths for your machine. Just drop the model folder in `models/LLM/Qwen3.8-Flash-Next/` and it works.
+- **Auto-generated config paths** — no more hardcoded `G:\...` paths. On startup, the plugin scans your actual model directory, finds the GGUF files, mmproj, packs, and MTP tensors, and regenerates `strata-<quant>.json` with correct absolute paths for your machine.
 - **3 built-in ComfyUI nodes**:
   - `BSAI LLM Call` — plain chat completion
   - `BSAI LLM Vision Describe` — image → text (via mmproj vision projector)
   - `BSAI LLM Prompt Enhance` — rough prompt → cinematic prompt
-- **Web management endpoints**:
-  - `GET /bsai/strata/health` — health check + auto-detect Strata install & run scripts
-  - `GET /bsai/strata/start?script=...` — launch a `run-<quant>.bat` (defaults to first found)
-  - `GET /bsai/strata/setup?quant=Q2_0&context=262144&kv=q4_0` — one-click `setup.py` against local GGUFs
-- **WinError 10035 fix** — uses manually-created blocking sockets, bypassing Python 3.14's asyncio non-blocking default on Windows.
 
 ---
 
@@ -47,129 +44,25 @@
 
 ## Installation / 安装步骤
 
-### Step 1: Install this plugin / 安装插件
+### Step 1: Download the full model package / 下载完整模型包
 
-**English**: The Strata engine is bundled as a **git submodule**. To download everything in one step, clone with `--recursive`:
+**English**: Go to the download page and get the full model package from Quark Pan (夸克网盘):
 
-```bash
-cd ComfyUI/custom_nodes
+**Download link / 下载链接**: https://pan.quark.cn/s/f6d2bbdaaa18
 
-# If the folder already exists, delete it first:
-Remove-Item -Recurse -Force "BSAI-LLM-Strata"   # PowerShell
-# or: rm -rf BSAI-LLM-Strata                    # Bash
+The package is **all-in-one**: it includes the model weights, pre-converted runtime data, AND the Strata engine binary — no separate downloads needed.
 
-# Clone with submodule (auto-downloads Strata engine)
-git clone --recursive https://github.com/xm6018924/BSAI-LLM-Strata.git
-```
+**中文**: 前往夸克网盘下载完整的模型包：
 
-**中文**: Strata 引擎作为 **git submodule** 包含在本插件仓库里。用 `--recursive` 参数克隆即可一次性下载全部：
+**下载链接**: https://pan.quark.cn/s/f6d2bbdaaa18
 
-```bash
-cd ComfyUI/custom_nodes
-
-# 如果目录已存在，先删除：
-Remove-Item -Recurse -Force "BSAI-LLM-Strata"   # PowerShell
-# 或: rm -rf BSAI-LLM-Strata                    # Bash
-
-# 带 submodule 克隆（自动下载 Strata 引擎）
-git clone --recursive https://github.com/xm6018924/BSAI-LLM-Strata.git
-```
-
-**Other install methods / 其他安装方式:**
-- **ComfyUI Manager**: Search `BSAI-LLM-Strata` → Install. The plugin auto-downloads the engine in background on first ComfyUI startup.
-- **ZIP download**: Extract into `custom_nodes/BSAI-LLM-Strata/`. The plugin auto-downloads the engine in background on first ComfyUI startup.
+这个包是**一体化的**：包含模型权重、预转换的运行时数据，**以及 Strata 引擎二进制文件**——不需要额外下载。
 
 ---
 
-### Step 2: Auto-download Strata engine / 自动下载 Strata 引擎
+### Step 2: Extract the model package / 解压模型包
 
-**English**: If you cloned with `--recursive`, the engine is already downloaded — skip this step.
-
-If you installed via Manager or ZIP (no `--recursive`), the plugin automatically detects the missing engine and downloads it in the background on first ComfyUI startup:
-
-```
-[BSAI-LLM-Strata] Strata engine not found, auto-downloading in background…
-[BSAI-LLM-Strata] Strata engine auto-download complete: .../Strata
-```
-
-**中文**: 如果你用 `--recursive` 克隆，引擎已经下载好了，跳过此步。
-
-如果你通过 Manager 或 ZIP 安装（没用 `--recursive`），插件会在首次启动 ComfyUI 时后台自动检测并下载引擎：
-
-```
-[BSAI-LLM-Strata] Strata engine not found, auto-downloading in background…
-[BSAI-LLM-Strata] Strata engine auto-download complete: .../Strata
-```
-
-> If you already have Strata installed elsewhere (`G:\Strata`, `C:\Strata`, `~/Strata`, etc.), the plugin will find it automatically and skip the download.
-
----
-
-### Step 2.5: First-run auto-setup (venv + dependencies + engine binary) / 首次启动自动安装
-
-**English**: After the source code is in place, the plugin runs a **3-step background setup** on first ComfyUI startup — no manual `SETUP.bat` needed. Everything happens automatically:
-
-| Step | What happens / 做什么 | Typical time / 耗时 |
-|---|---|---|
-| 1 | **Create `.venv` virtual environment** using system Python (Python 3.10+ required) / 用系统 Python 创建虚拟环境 | ~10 seconds |
-| 2 | **Install Python dependencies** (numpy, jinja2, cmake, ninja, etc.) via pip / 用 pip 安装 Python 依赖 | ~30 seconds |
-| 3 | **Download engine binary + prepare model data** by running `setup.py --yes --no-start` / 运行 setup.py 下载引擎二进制并准备模型数据 | ~5–15 minutes |
-
-**Total first-time setup: ~6–16 minutes** (depends on your internet speed). ComfyUI starts normally in the foreground while this runs in the background.
-
-**What you'll see in the console / 你会在控制台看到：**
-```
-[BSAI-LLM-Strata] Strata engine found: .../Strata
-[BSAI-LLM-Strata] 首次使用，正在自动创建 Strata 虚拟环境 (.venv) …
-[BSAI-LLM-Strata] 使用系统 Python: C:\...\Python312\python.exe
-[BSAI-LLM-Strata] 正在安装 Strata Python 依赖 …
-Successfully installed numpy-2.5.3 jinja2-3.1.6 ...
-[BSAI-LLM-Strata] Strata 虚拟环境创建完成。
-[BSAI-LLM-Strata] 首次使用，正在自动下载 Strata 引擎二进制并准备模型数据 …
-[BSAI-LLM-Strata] 这可能需要几分钟到十几分钟，请耐心等待 …
-```
-
-**How to know it's done / 怎么知道安装好了：**
-- Console shows `[BSAI-LLM-Strata] Strata engine fully installed. Ready to use.`
-- Or check the `Strata/` folder — you'll see `run-*.bat` files appear (e.g. `run-iq3_s.bat`)
-
-> **Note**: The plugin needs a **system Python 3.10+** installed (not just ComfyUI's embedded Python). If you don't have one, it will print a warning — install Python 3.12 from [python.org](https://www.python.org/downloads/) and restart ComfyUI.
-
----
-
-**中文**: 源代码就位后，插件会在首次启动 ComfyUI 时**后台自动完成 3 步安装**——无需手动运行 `SETUP.bat`。一切自动进行：
-
-| 步骤 | 做什么 | 预计耗时 |
-|---|---|---|
-| 1 | 用系统 Python（需 Python 3.10+）创建 `.venv` 虚拟环境 | ~10 秒 |
-| 2 | 用 pip 安装 Python 依赖（numpy、jinja2、cmake、ninja 等） | ~30 秒 |
-| 3 | 运行 `setup.py --yes --no-start` 下载引擎二进制并准备模型数据 | ~5–15 分钟 |
-
-**首次安装总耗时：约 6–16 分钟**（取决于网速）。ComfyUI 正常前台启动，安装在后台进行。
-
-**控制台输出示例：**
-```
-[BSAI-LLM-Strata] Strata engine found: .../Strata
-[BSAI-LLM-Strata] 首次使用，正在自动创建 Strata 虚拟环境 (.venv) …
-[BSAI-LLM-Strata] 使用系统 Python: C:\...\Python312\python.exe
-[BSAI-LLM-Strata] 正在安装 Strata Python 依赖 …
-Successfully installed numpy-2.5.3 jinja2-3.1.6 ...
-[BSAI-LLM-Strata] Strata 虚拟环境创建完成。
-[BSAI-LLM-Strata] 首次使用，正在自动下载 Strata 引擎二进制并准备模型数据 …
-[BSAI-LLM-Strata] 这可能需要几分钟到十几分钟，请耐心等待 …
-```
-
-**怎么确认安装完成：**
-- 控制台出现 `[BSAI-LLM-Strata] Strata engine fully installed. Ready to use.`
-- 或者查看 `Strata/` 目录——里面会出现 `run-*.bat` 文件（如 `run-iq3_s.bat`）
-
-> **注意**: 插件需要系统安装了 **Python 3.10+**（不能只有 ComfyUI 的嵌入式 Python）。如果没装，插件会打印警告——从 [python.org](https://www.python.org/downloads/) 安装 Python 3.12 后重启 ComfyUI 即可。
-
----
-
-### Step 3: Download model files / 下载模型文件
-
-**One unified folder.** Download all model files from the network drive (百度网盘 / 阿里云盘 / 夸克网盘 — link provided in the release page), then extract into:
+**English**: Extract the downloaded ZIP into your ComfyUI models directory:
 
 ```
 ComfyUI/models/LLM/Qwen3.8-Flash-Next/
@@ -183,43 +76,125 @@ ComfyUI/models/LLM/Qwen3.8-Flash-Next/
 ├── Qwen3.8-Flash-Next-GSQ-RCO-Q2_0-00002-of-00002.gguf   (~10 GB)
 ├── mmproj-Qwen3.8-Flash-Next-BF16.gguf                    (~1.5 GB, vision)
 ├── mtp-q2_0.gguf                                          (~2 GB, spec decoding)
+├── engine/                                                (Strata engine binary, ~200 MB)
+│   ├── strata.exe
+│   ├── strata-vision.exe
+│   └── BUILD.json
 ├── rt/                                                    (expert cache, ~1 GB)
 └── Strata-data/                                           (pre-converted runtime, ~6 GB)
     ├── packs/q2_0/                                       (packed experts + tokenizer)
     └── mtp/rt/                                           (MTP tensors)
 ```
 
-Total download: **~26 GB** (includes vision support).
+Total download: **~26 GB** (includes vision support + engine binary).
 
-> **You do NOT need to run setup.py.** The `Strata-data/` folder is pre-converted — just extract it alongside the GGUFs. This saves you 30+ minutes of conversion time.
-
----
-
-### Step 4: Start Strata / 启动 Strata
-
-**Option A: Automatic (recommended)** — Just restart ComfyUI. When you first run a node that uses Strata backend, it will auto-start itself.
-
-**Option B: Manual** — Open in browser (adjust port to your ComfyUI port):
+**中文**: 把下载的 ZIP 解压到 ComfyUI 的模型目录：
 
 ```
-http://127.0.0.1:8188/bsai/strata/start
+ComfyUI/models/LLM/Qwen3.8-Flash-Next/
 ```
 
-Or double-click `custom_nodes/BSAI-LLM-Strata/Strata/run-q2_0.bat`.
+解压后的目录结构：
 
-Wait until the model finishes loading (1–3 minutes on first run). You'll see `Strata listening on http://127.0.0.1:8080` in the console.
+```
+ComfyUI/models/LLM/Qwen3.8-Flash-Next/
+├── Qwen3.8-Flash-Next-GSQ-RCO-Q2_0-00001-of-00002.gguf   (~14 GB)
+├── Qwen3.8-Flash-Next-GSQ-RCO-Q2_0-00002-of-00002.gguf   (~10 GB)
+├── mmproj-Qwen3.8-Flash-Next-BF16.gguf                    (~1.5 GB, 视觉模型)
+├── mtp-q2_0.gguf                                          (~2 GB, 投机解码)
+├── rt/                                                    (专家缓存, ~1 GB)
+└── Strata-data/                                           (预转换运行时, ~6 GB)
+    ├── engine/                                            (Strata 引擎二进制, ~200 MB)
+    │   ├── strata.exe
+    │   ├── strata-vision.exe
+    │   └── BUILD.json
+    ├── packs/q2_0/                                       (打包专家 + 分词器)
+    └── mtp/rt/                                           (MTP 张量)
+```
+
+总下载量：**约 26 GB**（包含视觉支持 + 引擎二进制）。
+
+> **You do NOT need to run setup.py.** The `Strata-data/` folder is pre-converted and includes the engine — just extract it alongside the GGUFs. This saves you 30+ minutes of conversion and download time.
+>
+> **你不需要运行 setup.py。** `Strata-data/` 目录已经预转换好，并且包含引擎文件——只要把它和 GGUF 文件放在一起就行。这能帮你节省 30 分钟以上的转换和下载时间。
 
 ---
 
-### Step 5: Restart ComfyUI / 重启 ComfyUI
+### Step 3: Install the plugin / 安装插件
 
-Nodes appear under the `BSAI/LLM` category in the node browser.
+**English**: Install this plugin via ComfyUI Manager, or clone the repo into `custom_nodes/`:
+
+```bash
+cd ComfyUI/custom_nodes
+git clone https://github.com/xm6018924/BSAI-LLM-Strata.git
+```
+
+**中文**: 通过 ComfyUI Manager 安装本插件，或者直接 clone 到 `custom_nodes/` 目录：
+
+```bash
+cd ComfyUI/custom_nodes
+git clone https://github.com/xm6018924/BSAI-LLM-Strata.git
+```
+
+> **Note / 注意**: You do NOT need `--recursive`. The engine is already in your model package.
+>
+> **注意**: 你不需要加 `--recursive` 参数。引擎已经在你的模型包里了。
 
 ---
 
-## Quick Start / 快速开始
+### Step 4: Restart ComfyUI / 重启 ComfyUI
 
-After installation, you don't need to manually start Strata anymore:
+**English**: That's it! Just restart ComfyUI. The plugin will automatically:
+
+1. **Detect the model directory** at `models/LLM/Qwen3.8-Flash-Next/`
+2. **Copy the engine binary** from `Strata-data/engine/` to the plugin's `Strata/engine/` directory
+3. **Auto-detect the available quant** (Q2_0, IQ2_XS, etc.)
+4. **Generate the config file** (`strata-<quant>.json`) with correct absolute paths
+5. **Generate the launch script** (`run-<quant>.bat`)
+
+You'll see this in the console:
+
+```
+[BSAI-LLM-Strata] Strata engine found: .../Strata
+[BSAI-LLM-Strata] 使用系统 Python: C:\...\Python312\python.exe
+[BSAI-LLM-Strata] 检测到模型目录下的引擎文件: .../engine
+[BSAI-LLM-Strata] 引擎文件已复制到插件目录: .../Strata/engine
+[BSAI-LLM-Strata] 检测到已有的量化模型: Q2_0
+[BSAI-LLM-Strata] 配置文件生成完成。
+[BSAI-LLM-Strata] 启动脚本已生成: run-q2_0.bat
+[BSAI-LLM-Strata] Strata engine fully installed. Ready to use.
+```
+
+**中文**: 就这么简单！重启 ComfyUI 就行。插件会自动：
+
+1. **检测模型目录** `models/LLM/Qwen3.8-Flash-Next/`
+2. **从 `Strata-data/engine/` 复制引擎二进制**到插件的 `Strata/engine/` 目录
+3. **自动检测可用的量化版本**（Q2_0、IQ2_XS 等）
+4. **生成配置文件**（`strata-<quant>.json`），所有路径自动适配
+5. **生成启动脚本**（`run-<quant>.bat`）
+
+你会在控制台看到：
+
+```
+[BSAI-LLM-Strata] Strata engine found: .../Strata
+[BSAI-LLM-Strata] 使用系统 Python: C:\...\Python312\python.exe
+[BSAI-LLM-Strata] 检测到模型目录下的引擎文件: .../engine
+[BSAI-LLM-Strata] 引擎文件已复制到插件目录: .../Strata/engine
+[BSAI-LLM-Strata] 检测到已有的量化模型: Q2_0
+[BSAI-LLM-Strata] 配置文件生成完成。
+[BSAI-LLM-Strata] 启动脚本已生成: run-q2_0.bat
+[BSAI-LLM-Strata] Strata engine fully installed. Ready to use.
+```
+
+> **Total first-time setup: ~30 seconds** (just copying the engine file + generating configs).
+>
+> **首次安装总耗时：约 30 秒**（只是复制引擎文件 + 生成配置）。
+
+---
+
+### Step 5: Start using Strata / 开始使用 Strata
+
+**English**: There's no need to manually start Strata. Just use any BSAI node that supports Strata backend:
 
 1. In any BSAI node that supports Strata backend, select **"BSAI Strata"** from the backend dropdown.
 2. Execute the node — it will automatically:
@@ -235,6 +210,31 @@ Console output looks like:
 [BSAI-LLM-Strata] 后端已就绪: ['qwen3.8-flash-next-q2_0']
 [BSAI_Qwen_Prompt_Enhancer] Strata 后端就绪: started_and_ready
 ```
+
+**中文**: 你不需要手动启动 Strata。只要使用任何支持 Strata 后端的 BSAI 节点就行：
+
+1. 在任何支持 Strata 后端的 BSAI 节点里，从后端下拉菜单选择 **"BSAI Strata"**。
+2. 执行节点——它会自动：
+   - 探测 `http://127.0.0.1:8080/v1/models`
+   - 如果没运行，在单独的控制台窗口启动 `run-q2_0.bat`
+   - 每 3 秒检查一次健康状态，直到模型就绪（最多等 4 分钟）
+   - 发送 API 请求
+
+控制台输出示例：
+
+```
+[BSAI-LLM-Strata] 后端未运行，自动启动 Strata…
+[BSAI-LLM-Strata] 后端已就绪: ['qwen3.8-flash-next-q2_0']
+[BSAI_Qwen_Prompt_Enhancer] Strata 后端就绪: started_and_ready
+```
+
+---
+
+## Quick Start / 快速开始
+
+After installation, you don't need to manually start Strata anymore. Just select "BSAI Strata" as the backend in any BSAI node, and it will handle the rest.
+
+安装完成后，你不需要手动启动 Strata。只要在任何 BSAI 节点里选择 "BSAI Strata" 作为后端，剩下的它都会自动处理。
 
 ---
 
@@ -261,17 +261,6 @@ This plugin is the **central LLM backend** for the entire BSAI ComfyUI plugin su
 | **BSAI-ComfyUI-Sol-H3** | `PromptProvider` | `provider_mode = bsai_strata` |
 | **BSAI-MiniMAX-H3-Prompt** | `H3 ModelLoader` | `model_family = BSAI Strata` |
 | **BSAI_ComfyUI_Nodes** | `BSAI_QwenModelLoader`, `BSAI_MultiImageVideoReverse` | Backend combo → `BSAI Strata HTTP` |
-
-### How auto-discovery works / 自动发现机制
-
-`StrataManager.find_install()` searches (in order):
-
-1. `BSAI-LLM-Strata/Strata/` (bundled, preferred)
-2. `G:\Strata`, `C:\Strata`, `D:\Strata`, `E:\Strata`, `F:\Strata`
-3. `G:\BSAI-ComfyUI-intel-XPU-GPU-NPU-aki\Strata`
-4. `~/Strata`, `~/ProgramMine/Strata`
-
-Any `run-*.bat` found in the install directory becomes a launch candidate. The first one (`run-q2_0.bat` by default) is used for auto-start.
 
 ---
 
@@ -307,42 +296,21 @@ When ComfyUI is running, these endpoints are available:
 |---|---|
 | `GET /bsai/strata/health` | Health check: `{ok, models, install_dir, run_scripts, endpoint}` |
 | `GET /bsai/strata/start` | Spawn first `run-*.bat`; returns `{ok, pid}` |
-| `GET /bsai/strata/start?script=run-q4_k_m.bat` | Spawn a specific quant |
-| `GET /bsai/strata/setup?quant=Q2_0` | Run `setup.py` to configure the runtime |
+| `GET /bsai/strata/start?script=run-q2_0.bat` | Spawn a specific quant |
 
 ---
 
 ## Troubleshooting / 常见问题
 
-### WinError 10035 on Python 3.14 Windows
+### "Model directory not found"
 
-**Symptom**: `<urlopen error [WinError 10035] 无法立即完成一个非阻止性套接字操作>`
+Make sure you extracted the model package into `ComfyUI/models/LLM/Qwen3.8-Flash-Next/`. The plugin looks for this exact path.
 
-**Cause**: Python 3.14's asyncio event loop sets sockets to non-blocking by default; `urllib` doesn't handle this for local TCP connect.
+### "Engine binary not found"
 
-**Fix (already applied)**: This plugin uses manually-created blocking sockets (`socket.setblocking(True)`) instead of `urllib.request.urlopen`. If you see this error in a **third-party** plugin calling Strata, ensure it uses the same pattern or goes through `StrataManager.ensure_running()`.
-
-### Strata takes > 4 minutes to load
-
-The auto-start wait timeout is 240 seconds. On slower systems, you may need to:
-1. Start Strata manually via `run-q2_0.bat`
-2. Or increase `wait_timeout` in `strata_manager.py` → `StrataManager.ensure_running()`
-
-### VRAM OOM
-
-Use a smaller quant: `Q2_0` requires ~24 GB VRAM. If you have 16 GB, switch to `IQ2_XS` or run Strata on CPU only.
-
-### "Strata engine not found"
-
-The auto-download needs `git` installed. If `git clone` fails (e.g. GitHub blocked), manually download the Strata ZIP from [https://github.com/Niko1221/Strata](https://github.com/Niko1221/Strata) and extract it into `custom_nodes/BSAI-LLM-Strata/Strata/`.
-
-### Model files not found
-
-Make sure the GGUF files are in `ComfyUI/models/LLM/Qwen3.8-Flash-Next/` and the `Strata-data/` folder is in the same directory. The plugin auto-detects this path.
+Make sure the `engine/` folder exists in your model directory (`models/LLM/Qwen3.8-Flash-Next/engine/`). It should contain `strata.exe` and `strata-vision.exe`. If not, re-download the full model package from the network drive.
 
 ### ComfyUI window closes automatically after starting / ComfyUI 窗口启动后自动关闭
-
-**English / 中文**:
 
 **Symptom / 症状**: After ComfyUI starts, the BSAI launcher window closes automatically, but a separate "Strata" window appears in the background.
 
@@ -362,12 +330,9 @@ Make sure the GGUF files are in `ComfyUI/models/LLM/Qwen3.8-Flash-Next/` and the
 
    **然后正常重启 ComfyUI。** 现在 Strata 已经在运行（模型已加载），ComfyUI 启动时不会再触发内存峰值，就不会崩溃了。
 
-**Alternative / 备用方案**: If you want to avoid this entirely, disable auto-start on plugin load:
-- 如果你想完全避免这个问题，可以关闭插件启动时的自动启动功能：
-- Open `BSAI-LLM-Strata/__init__.py`
-- Find `Step 4: auto-start Strata service in background`
-- Comment out that block (add `#` at the start of each line)
-- Then manually start Strata via `run-q2_0.bat` BEFORE starting ComfyUI
+### VRAM OOM
+
+Use a smaller quant: `Q2_0` requires ~24 GB VRAM. If you have 16 GB, switch to `IQ2_XS` or run Strata on CPU only.
 
 ---
 
@@ -379,50 +344,39 @@ This plugin code is MIT. The bundled [Strata](https://github.com/Niko1221/Strata
 
 ## Changelog
 
+### v2.0.0 (2026-10-15) — All-in-one model package + Zero-config install
+- **English**: Complete redesign of the installation flow.
+  - The full model package (weights + runtime data + engine binary) is downloaded as one ZIP from the network drive.
+  - The plugin automatically detects the engine in `Strata-data/engine/` and copies it to the plugin directory.
+  - No more `setup.py`, no more venv, no more downloading from GitHub on first run.
+  - **First-time setup takes ~30 seconds** (just copying files + generating configs).
+- **中文**: 完全重新设计了安装流程。
+  - 完整模型包（权重 + 运行时数据 + 引擎二进制）作为一个 ZIP 从网盘下载。
+  - 插件自动检测 `Strata-data/engine/` 里的引擎文件，复制到插件目录。
+  - 不再需要 `setup.py`、不再需要 venv、首次启动时不再需要从 GitHub 下载。
+  - **首次安装只需约 30 秒**（只是复制文件 + 生成配置）。
+- **Removed venv requirement**: The plugin now uses system Python directly, no virtual environment needed.
+- **Simplified dependencies**: Removed cmake, ninja and other build-time dependencies — the engine is pre-built.
+- **Automatic engine copy**: The plugin auto-detects the engine in the model directory's `Strata-data/engine/` and copies it to the plugin's `Strata/engine/` directory.
+
 ### v1.5.0 (2026-10-15) — Strata engine as git submodule + Auto-download
-- **English**: The Strata engine is now bundled as a **git submodule** inside this plugin repo.
-  - If you clone with `git clone --recursive`, the engine downloads automatically during install — no extra steps.
-  - If you install via ComfyUI Manager, plain `git clone`, or ZIP extract, the plugin auto-downloads the engine in the background on first ComfyUI startup.
-  - Either way: install, restart ComfyUI, and the engine is ready — no manual cloning or setup needed.
-- **中文**: Strata 引擎现在作为 **git submodule** 包含在本插件仓库里。
-  - 如果你用 `git clone --recursive` 克隆，引擎会在安装时自动下载，无需额外操作。
-  - 如果你通过 ComfyUI Manager、普通 `git clone` 或 ZIP 解压安装，插件会在首次启动 ComfyUI 时后台自动下载引擎。
-  - 不管哪种方式：安装完重启 ComfyUI，引擎就就绪了——无需手动 clone 或配置。
-- **Background auto-download**: On plugin load, if the engine is missing, a background thread automatically runs `git clone https://github.com/Niko1221/Strata.git`. ComfyUI starts normally while download runs in background.
-- **后台自动下载**: 插件加载时，如果引擎缺失，后台线程会自动执行 `git clone https://github.com/Niko1221/Strata.git`。ComfyUI 正常启动，下载在后台进行。
+- Strata engine bundled as git submodule, auto-download on first ComfyUI startup.
+- Background auto-download thread, no blocking ComfyUI startup.
 
 ### v1.4.0 (2026-10-15) — Auto-path config generation + Speed tuning
-- **English**: On startup, the plugin now auto-scans your model directory and regenerates `strata-<quant>.json` with correct absolute paths. No more manually editing hardcoded `G:\...` paths — just extract the model folder into `models/LLM/Qwen3.8-Flash-Next/` and it works on any machine.
-- **中文**: 启动时自动扫描模型目录，动态生成 `strata-<quant>.json` 配置，所有路径自动适配当前电脑。再也不用手动改硬编码的 `G:\...` 路径——把模型文件夹解压到 `models/LLM/Qwen3.8-Flash-Next/` 即可在任意电脑上运行。
-- **Speed tuning / 性能调优** (preserved in auto-generated config):
-  - `--max-context`: 262144 → 65536 (saves ~7 GB KV cache VRAM)
-  - `--spec`: 4 → 8 (longer speculative draft, +20-30% generation speed)
-  - `--kv-resident`: 32768 → 16384 (frees VRAM for expert cache)
-  - `--vram-reserve-mib`: 700 → 200 (more VRAM for experts)
-- **Auto-tier adjustment**: 24 GB VRAM now picks IQ2_XS (speed-first) instead of IQ3_S (quality-first). Users can still manually select any quant in the dropdown.
-- **WinError 87 fix**: removed conflicting `DETACHED_PROCESS` flag (mutually exclusive with `CREATE_NEW_CONSOLE`).
+- Auto-scan model directory, regenerate `strata-<quant>.json` with correct absolute paths.
+- Speed tuning: context size, spec decoding, KV cache, VRAM reserve optimized.
 
 ### v1.3.0 (2026-10-14) — Quant selector + Auto hardware detection
-- **新增量化选择下拉菜单** / Added quant dropdown in BSAI LLM Call node:
-  - `Auto (自动适配)` — detects VRAM & RAM via nvidia-smi + psutil, picks best quant
-  - `Q2_0` — fastest, lowest VRAM (~24 GB)
-  - `IQ2_XS` — slightly better quality, similar speed
-  - `IQ3_XXS` — better quality, slower
-  - `IQ3_S` — best quality (near BF16), needs ≥24 GB VRAM + ≥64 GB RAM
-- **Auto-select tiers**: ≥24GB VRAM+64GB RAM → IQ3_S; ≥20GB+48GB → IQ3_XXS; ≥16GB+40GB → IQ2_XS; else → Q2_0
-- **Web endpoint**: `GET /bsai/strata/set_quant?quant=<label>` to set global preferred quant
-- **Built 4 quant configs + run scripts**: `strata-q2_0.json`, `strata-iq2_xs.json`, `strata-iq3_xxs.json`, `strata-iq3_s.json` + matching `run-*.bat`
-- **Converted 3 extra packs** via `tools/iq_pack.py`: `packs/iq2_xs`, `packs/iq3_xxs`, `packs/iq3_s` (abliterated GGUFs)
-- **Restored BSAI Strata backend** in BSAI-Qwen-Prompt-Enhancer (was overwritten by upstream update)
-- **Cleanup**: deleted `.done` markers + duplicate `Q2_0/` subdir (freed 124.5 GB)
+- Added quant dropdown: Auto, Q2_0, IQ2_XS, IQ3_XXS, IQ3_S.
+- Auto-select tiers based on VRAM & RAM.
 
 ### v1.2.0 (2026-10-14) — Unified model directory
-- Strata-data moved into `models/LLM/Qwen3.8-Flash-Next/Strata-data/` (single download)
-- All BSAI plugins patched with blocking-socket HTTP (WinError 10035 fix)
-- Comprehensive bilingual README
+- Strata-data moved into `models/LLM/Qwen3.8-Flash-Next/Strata-data/` (single download).
+- Comprehensive bilingual README.
 
 ### v1.1.0
-- Auto-start on demand (`ensure_running`), WinError 10035 blocking-socket fix
+- Auto-start on demand (`ensure_running`), WinError 10035 blocking-socket fix.
 
 ### v1.0.0
-- Initial release — health/start/setup web routes, 3 nodes, OpenAI-compatible proxy
+- Initial release — health/start/setup web routes, 3 nodes, OpenAI-compatible proxy.

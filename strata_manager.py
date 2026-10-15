@@ -309,7 +309,7 @@ class StrataManager:
 
     @classmethod
     def ensure_strata_venv(cls):
-        """Find system Python with required dependencies. No venv needed."""
+        """Find system Python and auto-install required dependencies. No venv needed."""
         install = cls.find_install()
         if not install:
             return None
@@ -329,9 +329,23 @@ class StrataManager:
                 print(f"[BSAI-LLM-Strata] 使用系统 Python: {sys_python}")
                 return sys_python
             else:
-                print(f"[BSAI-LLM-Strata] 系统 Python 缺少依赖: {r.stderr[-200:]}")
-                print("[BSAI-LLM-Strata] 请运行: pip install numpy jinja2 pyyaml requests")
-                return None
+                # Auto-install missing dependencies using Tsinghua mirror
+                print("[BSAI-LLM-Strata] 检测到缺少依赖，正在自动安装 ...")
+                deps = "numpy jinja2 pyyaml tqdm requests cmake ninja pillow psutil markupsafe certifi charset-normalizer idna urllib3 colorama regex"
+                env = os.environ.copy()
+                env["PIP_INDEX_URL"] = "https://pypi.tuna.tsinghua.edu.cn/simple"
+                env["PIP_TRUSTED_HOST"] = "pypi.tuna.tsinghua.edu.cn"
+                r2 = subprocess.run(
+                    [sys_python, "-m", "pip", "install", deps],
+                    capture_output=True, text=True, timeout=300,
+                    env=env,
+                )
+                if r2.returncode == 0:
+                    print("[BSAI-LLM-Strata] 依赖安装完成。")
+                    return sys_python
+                else:
+                    print(f"[BSAI-LLM-Strata] 依赖安装失败: {r2.stderr[-300:]}")
+                    return None
         except Exception as e:
             print(f"[BSAI-LLM-Strata] 检查依赖失败: {e}")
             return None
@@ -394,11 +408,36 @@ class StrataManager:
         install = cls.find_install()
         if not install:
             return False
-        venv_python = os.path.join(install, ".venv", "Scripts", "python.exe")
-        if not os.path.exists(venv_python):
-            venv_python = cls.ensure_strata_venv()
-            if not venv_python:
-                return False
+        # Use system Python directly, no venv
+        venv_python = cls.ensure_strata_venv()
+        if not venv_python:
+            return False
+        # First: check if engine files exist in model directory's engine/ folder
+        # If yes, copy them to plugin's Strata/engine/
+        # Engine files can be directly in model dir's engine/ folder (simple layout)
+        # OR in Strata-data/engine/ (legacy layout)
+        model_engine_paths = [
+            os.path.join(STRATA_MODEL_DIR, "engine"),
+            os.path.join(STRATA_DATA_DIR, "engine"),
+        ]
+        plugin_engine_dir = os.path.join(install, "engine")
+        for model_engine_dir in model_engine_paths:
+            if os.path.isdir(model_engine_dir):
+                model_exe = os.path.join(model_engine_dir, "strata.exe")
+                if os.path.exists(model_exe):
+                    print(f"[BSAI-LLM-Strata] 检测到模型目录下的引擎文件: {model_engine_dir}")
+                    # Create plugin engine dir if not exists
+                    os.makedirs(plugin_engine_dir, exist_ok=True)
+                    # Copy all files from model engine dir to plugin engine dir
+                    import shutil
+                    for f in os.listdir(model_engine_dir):
+                        src = os.path.join(model_engine_dir, f)
+                        dst = os.path.join(plugin_engine_dir, f)
+                        if os.path.isfile(src):
+                            shutil.copy2(src, dst)
+                    print(f"[BSAI-LLM-Strata] 引擎文件已复制到插件目录: {plugin_engine_dir}")
+                    break
+
         # Check if run-*.bat already exists (engine already set up)
         existing_runs = [f for f in os.listdir(install) if f.startswith("run-") and f.endswith(".bat")]
         if existing_runs:
@@ -460,6 +499,23 @@ if errorlevel 1 pause
             best_quant = None
             best_dir = None
             print("[BSAI-LLM-Strata] 未检测到已有模型，setup.py 将自动下载默认模型 …")
+        # Auto-install all dependencies using Tsinghua mirror before running setup.py
+        print("[BSAI-LLM-Strata] 正在自动安装 Strata 依赖包 ...")
+        deps_list = ["numpy", "jinja2", "regex", "pyyaml", "tqdm", "requests", "pillow", "psutil", "markupsafe", "certifi", "charset-normalizer", "idna", "urllib3", "colorama"]
+        env = os.environ.copy()
+        env["PIP_INDEX_URL"] = "https://pypi.tuna.tsinghua.edu.cn/simple"
+        env["PIP_TRUSTED_HOST"] = "pypi.tuna.tsinghua.edu.cn"
+        r_deps = subprocess.run(
+            [venv_python, "-m", "pip", "install"] + deps_list,
+            capture_output=True, text=True, timeout=300,
+            env=env,
+        )
+        print(f"[BSAI-LLM-Strata] pip install stdout: {r_deps.stdout[-500:]}")
+        print(f"[BSAI-LLM-Strata] pip install stderr: {r_deps.stderr[-500:]}")
+        if r_deps.returncode == 0:
+            print("[BSAI-LLM-Strata] 依赖包安装完成。")
+        else:
+            print(f"[BSAI-LLM-Strata] 依赖包安装失败，继续尝试运行 setup.py ...")
         # Build setup.py args
         args = [venv_python, "setup.py", "--yes", "--no-start"]
         if best_quant:
@@ -485,10 +541,28 @@ if errorlevel 1 pause
                                 os.remove(p)
                             except Exception:
                                 pass
+                # Set pip mirror to Tsinghua for automatic dependency installation
+                env = os.environ.copy()
+                env["PIP_INDEX_URL"] = "https://pypi.tuna.tsinghua.edu.cn/simple"
+                env["PIP_TRUSTED_HOST"] = "pypi.tuna.tsinghua.edu.cn"
+                # Set GitHub mirror for Strata engine download
+                # Try ghproxy.com first, fallback to official GitHub
+                if attempt == 1:
+                    # First try: official GitHub
+                    env["STRATA_PREBUILT_URL"] = "https://github.com/Niko1221/Strata/releases/latest/download/"
+                elif attempt == 2:
+                    # Second try: ghproxy.com mirror
+                    env["STRATA_PREBUILT_URL"] = "https://ghproxy.com/https://github.com/Niko1221/Strata/releases/latest/download/"
+                    print("[BSAI-LLM-Strata] 切换到 GitHub 镜像源 (ghproxy.com) ...")
+                else:
+                    # Third try: mirror.ghproxy.com
+                    env["STRATA_PREBUILT_URL"] = "https://mirror.ghproxy.com/https://github.com/Niko1221/Strata/releases/latest/download/"
+                    print("[BSAI-LLM-Strata] 切换到 GitHub 镜像源 (mirror.ghproxy.com) ...")
                 r = subprocess.run(
                     args,
                     cwd=install,
                     capture_output=True, text=True, timeout=1800,  # 30 min timeout
+                    env=env,
                 )
                 if r.returncode != 0:
                     print(f"[BSAI-LLM-Strata] setup.py 失败 (exit {r.returncode}):")
