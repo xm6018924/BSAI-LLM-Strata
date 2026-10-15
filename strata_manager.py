@@ -647,9 +647,13 @@ if errorlevel 1 pause
 
     # ---------- auto-generate json config (fix hardcoded paths) ----------
     _QUANT_JSON_MAP = {
+        "Q2_0":       ("q2_0", "Q2_0"),
         "Q2_0 (最快 / fastest)":       ("q2_0", "Q2_0"),
+        "IQ2_XS":      ("iq2_xs", "IQ2_XS"),
         "IQ2_XS (略好 / better)":      ("iq2_xs", "IQ2_XS"),
+        "IQ3_XXS":       ("iq3_xxs", "IQ3_XXS"),
         "IQ3_XXS (更好 / good)":       ("iq3_xxs", "IQ3_XXS"),
+        "IQ3_S": ("iq3_s", "IQ3_S"),
         "IQ3_S (最好 / best quality)": ("iq3_s", "IQ3_S"),
     }
 
