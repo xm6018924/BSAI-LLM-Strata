@@ -1323,3 +1323,81 @@ $("img-form").onsubmit = async (ev) => {
     $("img-go").disabled = false;
   }
 };
+
+// ------------------------------------------------------------------ BSAI Model Switcher
+const MANAGER_URL = "http://127.0.0.1:8081";
+
+async function loadCurrentModel() {
+  try {
+    const r = await fetch(`${MANAGER_URL}/api/current`);
+    const j = await r.json();
+    if (j.current) {
+      highlightCurrentModel(j.current);
+      $("model-status").textContent = `当前模型: ${j.current}`;
+    }
+  } catch (e) {
+    $("model-status").textContent = "模型管理服务未启动，请使用启动脚本启动。";
+  }
+}
+
+function highlightCurrentModel(model) {
+  document.querySelectorAll(".model-item").forEach(el => {
+    if (el.dataset.model === model) {
+      el.style.background = "rgba(0,212,255,0.15)";
+      el.style.border = "1px solid rgba(0,212,255,0.5)";
+    } else {
+      el.style.background = "rgba(255,255,255,0.05)";
+      el.style.border = "1px solid transparent";
+    }
+  });
+}
+
+async function switchModel(model) {
+  if (!confirm(`确定要切换到 ${model} 模型吗？\n引擎将重启，需要等待 1-2 分钟。`)) {
+    return;
+  }
+  $("model-status").textContent = `正在切换到 ${model}... 请等待`;
+  try {
+    const r = await fetch(`${MANAGER_URL}/api/switch`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({model})
+    });
+    const j = await r.json();
+    if (j.error) throw new Error(j.error);
+    toast("ok", "正在切换模型", `等待引擎重启，请稍候...`);
+    
+    // Poll for engine ready
+    let tries = 0;
+    const checkReady = setInterval(async () => {
+      tries++;
+      try {
+        const r = await fetch(`${MANAGER_URL}/api/current`);
+        const j = await r.json();
+        if (j.current === model && tries > 10) {
+          clearInterval(checkReady);
+          toast("ok", "切换完成", `已切换到 ${model} 模型`);
+          highlightCurrentModel(model);
+          $("model-status").textContent = `当前模型: ${model}`;
+          // Reload page to refresh health
+          setTimeout(() => location.reload(), 1000);
+        }
+      } catch (e) {
+        // Still waiting
+      }
+      if (tries > 90) {
+        clearInterval(checkReady);
+        $("model-status").textContent = "切换超时，请手动刷新页面。";
+      }
+    }, 2000);
+  } catch (e) {
+    toast("error", "切换失败", String(e.message || e));
+    $("model-status").textContent = "切换失败: " + (e.message || e);
+  }
+}
+
+// Init model switcher
+document.querySelectorAll(".model-item").forEach(el => {
+  el.addEventListener("click", () => switchModel(el.dataset.model));
+});
+loadCurrentModel();
