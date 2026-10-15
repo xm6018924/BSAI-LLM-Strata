@@ -282,6 +282,8 @@ class StrataManager:
         # Patch file mapping: (source_patch_file, target_relative_path)
         patches = [
             ("serve-web-app.js", os.path.join("serve", "web", "app.js")),
+            ("serve-web-index.html", os.path.join("serve", "web", "index.html")),
+            ("serve-web-bsai-logo.png", os.path.join("serve", "web", "bsai-logo.png")),
             ("serve-server.py", os.path.join("serve", "server.py")),
         ]
         applied = 0
