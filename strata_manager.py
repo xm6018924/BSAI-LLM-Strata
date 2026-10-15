@@ -446,7 +446,7 @@ class StrataManager:
             args.extend(["--gguf-dir", best_dir])
         args.extend(["--models-dir", STRATA_MODEL_DIR])
         # Run setup.py with auto-retry
-        max_retries = 2
+        max_retries = 3
         for attempt in range(1, max_retries + 1):
             try:
                 if attempt == 1:
@@ -454,6 +454,15 @@ class StrataManager:
                     print("[BSAI-LLM-Strata] 这可能需要几分钟到十几分钟，请耐心等待 …")
                 else:
                     print(f"[BSAI-LLM-Strata] 第 {attempt} 次重试自动安装引擎 …")
+                    # Clean up corrupted download files before retrying
+                    for f in ["strata-windows-x64.zip", "strata-windows-x64.zip.part"]:
+                        p = os.path.join(install, f)
+                        if os.path.exists(p):
+                            print(f"[BSAI-LLM-Strata] 清理损坏的下载文件: {f}")
+                            try:
+                                os.remove(p)
+                            except Exception:
+                                pass
                 r = subprocess.run(
                     args,
                     cwd=install,
