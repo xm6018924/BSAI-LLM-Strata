@@ -21,6 +21,7 @@
 - **OpenAI-compatible endpoint** at `http://127.0.0.1:8080/v1` — any ComfyUI node that speaks OpenAI API can point here directly.
 - **Auto-start on demand** — any BSAI node that selects Strata as its backend will probe health first; if Strata isn't running, it automatically launches `run-<quant>.bat` and waits (up to 4 minutes) for the 125B model to load before sending the first request.
 - **Auto-generated config paths** — no more hardcoded `G:\...` paths. On startup, the plugin scans your actual model directory, finds the GGUF files, mmproj, packs, and MTP tensors, and regenerates `strata-<quant>.json` with correct absolute paths for your machine.
+- **Video analysis support** — upload video files directly in the Strata Web UI; the backend automatically extracts keyframes and the model can analyze video content.
 - **3 built-in ComfyUI nodes**:
   - `BSAI LLM Call` — plain chat completion
   - `BSAI LLM Vision Describe` — image → text (via mmproj vision projector)
@@ -245,6 +246,54 @@ After installation, you don't need to manually start Strata anymore. Just select
 | **BSAI LLM Call** | Plain chat completion — send a prompt, get a text response. Use for any LLM task. |
 | **BSAI LLM Vision Describe** | Image → text description. Upload an image, get a detailed caption (uses mmproj vision projector). |
 | **BSAI LLM Prompt Enhance** | Rough prompt → cinematic prompt. Type "a girl walking in the rain", get a full cinematic prompt ready for H3 / Wan / SVD video generation. |
+
+---
+
+## Video Analysis / 视频分析
+
+**English**: The Strata Web UI now supports video file upload! You can upload video files directly and the model will analyze them.
+
+### How it works:
+1. Upload a video file (`.mp4`, `.avi`, `.mov`, etc.) — max 500 MB
+2. The backend automatically extracts 3 keyframes (at 25%, 50%, and 75% of the video duration)
+3. These keyframes are sent to the model as images
+4. The model can analyze the video content: scenes, people, actions, text, etc.
+
+### How to use:
+1. Open the Strata Web UI at `http://127.0.0.1:8080/`
+2. Click the attachment button (paperclip icon) or drag & drop a video file into the chat
+3. Wait a few seconds while the backend extracts keyframes
+4. You'll see the video file and 3 keyframe screenshots in the attachment area
+5. Type your question and send — the model will analyze the video content!
+
+### Example questions:
+- "What is happening in this video?"
+- "Describe the main scene and characters"
+- "Is there any text or logo in the video?"
+- "What is the overall mood of this video?"
+
+---
+
+**中文**: Strata Web UI 现在支持视频文件上传了！你可以直接上传视频文件，模型会自动分析视频内容。
+
+### 工作原理：
+1. 上传视频文件（`.mp4`、`.avi`、`.mov` 等格式）——最大 500 MB
+2. 后端自动提取 3 张关键帧（视频时长的 25%、50%、75% 位置）
+3. 这些关键帧会作为图片发送给模型
+4. 模型可以分析视频内容：场景、人物、动作、文字等
+
+### 使用方法：
+1. 打开 Strata Web UI：`http://127.0.0.1:8080/`
+2. 点击附件按钮（回形针图标），或者直接把视频文件拖放到聊天窗口
+3. 等待几秒钟，后端正在提取关键帧
+4. 你会在附件区域看到视频文件和 3 张关键帧截图
+5. 输入你的问题并发送——模型就会分析视频内容了！
+
+### 示例问题：
+- "这个视频里发生了什么？"
+- "描述一下主要场景和人物"
+- "视频里有什么文字或 logo 吗？"
+- "这个视频的整体氛围是什么？"
 
 ---
 
