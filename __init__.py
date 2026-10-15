@@ -175,6 +175,27 @@ def _auto_download_engine_async():
                                 f.write(js)
                             log.info("[BSAI-LLM-Strata] Patched app.js with video upload support.")
 
+                    # Create Strata launcher shortcut in ComfyUI root dir
+                    try:
+                        import folder_paths
+                        comfy_root = os.path.dirname(folder_paths.base_path) if hasattr(folder_paths, 'base_path') else os.path.dirname(os.path.dirname(install))
+                        run_bat = os.path.join(install, "run-q2_0.bat")
+                        shortcut_path = os.path.join(comfy_root, "启动Strata服务.lnk")
+                        if os.path.exists(run_bat) and not os.path.exists(shortcut_path):
+                            import subprocess
+                            ps_script = f'''
+                            $ws = New-Object -ComObject WScript.Shell
+                            $shortcut = $ws.CreateShortcut("{shortcut_path}")
+                            $shortcut.TargetPath = "{run_bat}"
+                            $shortcut.WorkingDirectory = "{install}"
+                            $shortcut.Description = "启动百声AI Strata 大模型服务"
+                            $shortcut.Save()
+                            '''
+                            subprocess.run(["powershell", "-Command", ps_script], capture_output=True, timeout=10)
+                            log.info(f"[BSAI-LLM-Strata] Created Strata launcher shortcut: {shortcut_path}")
+                    except Exception as e:
+                        log.debug(f"[BSAI-LLM-Strata] Shortcut creation skipped: {e}")
+
                 except Exception as e:
                     log.debug(f"[BSAI-LLM-Strata] Web UI patch skipped: {e}")
 
