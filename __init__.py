@@ -91,6 +91,26 @@ def _auto_download_engine_async():
                     log.info("[BSAI-LLM-Strata] Strata engine fully installed. Ready to use.")
                 else:
                     log.warning("[BSAI-LLM-Strata] Engine setup incomplete. Please manually run START-HERE.bat.")
+                    return
+
+                # Step 4: auto-start Strata service in background
+                import socket as _socket
+                s = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+                s.settimeout(2)
+                result = s.connect_ex(("127.0.0.1", 8080))
+                s.close()
+                if result != 0:
+                    log.info("[BSAI-LLM-Strata] Strata service not running, auto-starting in background…")
+                    try:
+                        start_result = StrataManager.start()
+                        if start_result.get("ok"):
+                            log.info(f"[BSAI-LLM-Strata] Strata service started (pid={start_result.get('pid')})")
+                        else:
+                            log.warning(f"[BSAI-LLM-Strata] Strata auto-start failed: {start_result}")
+                    except Exception as e:
+                        log.warning(f"[BSAI-LLM-Strata] Strata auto-start error: {e}")
+                else:
+                    log.info("[BSAI-LLM-Strata] Strata service already running.")
             except Exception as e:
                 log.warning(f"[BSAI-LLM-Strata] Auto-download error: {e}")
         t = threading.Thread(target=_worker, daemon=True)
