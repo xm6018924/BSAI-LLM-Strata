@@ -136,6 +136,45 @@ def _auto_download_engine_async():
                                 f.write(html)
                             log.info("[BSAI-LLM-Strata] Patched index.html with BSAI branding.")
 
+                    # Patch app.js: support video uploads
+                    app_js = os.path.join(install, "serve", "web", "app.js")
+                    if os.path.exists(app_js):
+                        with open(app_js, "r", encoding="utf-8") as f:
+                            js = f.read()
+                        if "/v1/video/upload" not in js:
+                            old_addfiles = '''function addFiles(files) {
+  for (const f of files) {
+    if (f.type.startsWith("image/")) {'''
+                            new_addfiles = '''function addFiles(files) {
+  for (const f of files) {
+    // Video files: upload to backend for frame extraction
+    if (f.type.startsWith("video/") || /\\.(mp4|webm|mov|avi|mkv)$/i.test(f.name)) {
+      if (f.size > 100 * 1024 * 1024) { toast("warn", "Video too large", `${f.name} is over 100 MB.`); continue; }
+      toast("info", "Video uploading", `${f.name}: uploading for frame extraction…`);
+      const fd = new FormData();
+      fd.append("file", f);
+      fetch("/v1/video/upload", { method: "POST", body: fd })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.ok && data.frames && data.frames.length) {
+            toast("success", "Video processed", `${f.name}: extracted ${data.frames.length} frames.`);
+            data.frames.forEach((frame) => {
+              attachments.push({kind: "image", name: `Frame (${frame.timestamp}s)`, url: frame.url});
+            });
+            renderAttachments();
+          } else {
+            toast("warn", "Video failed", data.error || "Could not process video.");
+          }
+        })
+        .catch((e) => toast("warn", "Video error", String(e)));
+      continue;
+    }
+    if (f.type.startsWith("image/")) {'''
+                            js = js.replace(old_addfiles, new_addfiles)
+                            with open(app_js, "w", encoding="utf-8") as f:
+                                f.write(js)
+                            log.info("[BSAI-LLM-Strata] Patched app.js with video upload support.")
+
                 except Exception as e:
                     log.debug(f"[BSAI-LLM-Strata] Web UI patch skipped: {e}")
 
