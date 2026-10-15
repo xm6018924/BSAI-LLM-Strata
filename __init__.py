@@ -93,6 +93,17 @@ def _auto_download_engine_async():
                     log.warning("[BSAI-LLM-Strata] Engine setup incomplete. Please manually run START-HERE.bat.")
                     return
 
+                # Step 3.5: inject BSAI logo into Strata web UI
+                try:
+                    plugin_web = os.path.join(os.path.dirname(__file__), "web", "bsai-logo.png")
+                    strata_web = os.path.join(install, "serve", "web", "bsai-logo.png")
+                    if os.path.exists(plugin_web) and not os.path.exists(strata_web):
+                        import shutil
+                        shutil.copy2(plugin_web, strata_web)
+                        log.info("[BSAI-LLM-Strata] BSAI logo injected into Strata web UI.")
+                except Exception as e:
+                    log.debug(f"[BSAI-LLM-Strata] Logo inject skipped: {e}")
+
                 # Step 4: auto-start Strata service in background
                 import socket as _socket
                 s = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
