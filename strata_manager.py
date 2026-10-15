@@ -338,6 +338,7 @@ class StrataManager:
     def ensure_strata_engine(cls):
         """Auto-run setup.py to download engine binary and prepare model data.
         Uses --yes --no-start to skip interactive prompts.
+        Auto-retries once on failure (handles network hiccups).
         Returns True on success, False on failure."""
         install = cls.find_install()
         if not install:
@@ -351,22 +352,37 @@ class StrataManager:
         existing_runs = [f for f in os.listdir(install) if f.startswith("run-") and f.endswith(".bat")]
         if existing_runs:
             return True
-        # Run setup.py
-        try:
-            print("[BSAI-LLM-Strata] 首次使用，正在自动下载 Strata 引擎二进制并准备模型数据 …")
-            print("[BSAI-LLM-Strata] 这可能需要几分钟到十几分钟，请耐心等待 …")
-            subprocess.run(
-                [venv_python, "setup.py", "--yes", "--no-start",
-                 "--models-dir", STRATA_MODEL_DIR],
-                cwd=install,
-                check=True, timeout=1800,  # 30 min timeout
-            )
-            print("[BSAI-LLM-Strata] Strata 引擎安装完成。")
-            return True
-        except Exception as e:
-            print(f"[BSAI-LLM-Strata] 自动安装引擎失败: {e}")
-            print("[BSAI-LLM-Strata] 请手动运行 START-HERE.bat 完成安装。")
-            return False
+        # Run setup.py with auto-retry
+        max_retries = 2
+        for attempt in range(1, max_retries + 1):
+            try:
+                if attempt == 1:
+                    print("[BSAI-LLM-Strata] 首次使用，正在自动下载 Strata 引擎二进制并准备模型数据 …")
+                    print("[BSAI-LLM-Strata] 这可能需要几分钟到十几分钟，请耐心等待 …")
+                else:
+                    print(f"[BSAI-LLM-Strata] 第 {attempt} 次重试自动安装引擎 …")
+                subprocess.run(
+                    [venv_python, "setup.py", "--yes", "--no-start",
+                     "--models-dir", STRATA_MODEL_DIR],
+                    cwd=install,
+                    check=True, timeout=1800,  # 30 min timeout
+                )
+                # Verify run-*.bat was created
+                new_runs = [f for f in os.listdir(install) if f.startswith("run-") and f.endswith(".bat")]
+                if new_runs:
+                    print("[BSAI-LLM-Strata] Strata 引擎安装完成。")
+                    return True
+                else:
+                    print("[BSAI-LLM-Strata] setup.py 运行完成，但未找到 run-*.bat，可能未完全成功。")
+                    return False
+            except Exception as e:
+                print(f"[BSAI-LLM-Strata] 自动安装引擎失败 (尝试 {attempt}/{max_retries}): {e}")
+                if attempt < max_retries:
+                    print("[BSAI-LLM-Strata] 等待 10 秒后自动重试 …")
+                    import time
+                    time.sleep(10)
+        print("[BSAI-LLM-Strata] 自动安装引擎失败，请手动运行 START-HERE.bat 完成安装。")
+        return False
 
     @classmethod
     def find_install(cls):
