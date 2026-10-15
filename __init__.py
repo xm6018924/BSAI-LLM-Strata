@@ -56,5 +56,33 @@ def _register_routes():
 _register_routes()
 
 
+def _auto_download_engine_async():
+    """Background thread: auto-download Strata engine on plugin load.
+    Wrapped in try-except so download failure never breaks plugin loading."""
+    try:
+        import threading
+        def _worker():
+            try:
+                install = StrataManager.find_install()
+                if install:
+                    log.info(f"[BSAI-LLM-Strata] Strata engine found: {install}")
+                else:
+                    log.warning("[BSAI-LLM-Strata] Strata engine not found, auto-downloading in background…")
+                    result = StrataManager.ensure_strata_installed()
+                    if result:
+                        log.info(f"[BSAI-LLM-Strata] Strata engine auto-download complete: {result}")
+                    else:
+                        log.warning("[BSAI-LLM-Strata] Auto-download failed. Please manually clone https://github.com/Niko1221/Strata into custom_nodes/BSAI-LLM-Strata/Strata/")
+            except Exception as e:
+                log.warning(f"[BSAI-LLM-Strata] Auto-download error: {e}")
+        t = threading.Thread(target=_worker, daemon=True)
+        t.start()
+    except Exception as e:
+        log.warning(f"[BSAI-LLM-Strata] Failed to start auto-download thread: {e}")
+
+
+_auto_download_engine_async()
+
+
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "WEB_DIRECTORY",
            "StrataManager", "DEFAULT_STRATA_BASE_URL", "DEFAULT_STRATA_MODEL"]
