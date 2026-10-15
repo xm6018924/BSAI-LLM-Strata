@@ -57,22 +57,31 @@ _register_routes()
 
 
 def _auto_download_engine_async():
-    """Background thread: auto-download Strata engine on plugin load.
-    Wrapped in try-except so download failure never breaks plugin loading."""
+    """Background thread: auto-download Strata engine + create .venv on plugin load.
+    Wrapped in try-except so any failure never breaks plugin loading."""
     try:
         import threading
         def _worker():
             try:
+                # Step 1: find or download Strata source
                 install = StrataManager.find_install()
                 if install:
                     log.info(f"[BSAI-LLM-Strata] Strata engine found: {install}")
                 else:
                     log.warning("[BSAI-LLM-Strata] Strata engine not found, auto-downloading in background…")
-                    result = StrataManager.ensure_strata_installed()
-                    if result:
-                        log.info(f"[BSAI-LLM-Strata] Strata engine auto-download complete: {result}")
+                    install = StrataManager.ensure_strata_installed()
+                    if install:
+                        log.info(f"[BSAI-LLM-Strata] Strata engine auto-download complete: {install}")
                     else:
                         log.warning("[BSAI-LLM-Strata] Auto-download failed. Please manually clone https://github.com/Niko1221/Strata into custom_nodes/BSAI-LLM-Strata/Strata/")
+                        return
+
+                # Step 2: create .venv and install Python deps if missing
+                venv_python = StrataManager.ensure_strata_venv()
+                if venv_python:
+                    log.info(f"[BSAI-LLM-Strata] Strata .venv ready: {venv_python}")
+                else:
+                    log.warning("[BSAI-LLM-Strata] .venv not ready. Please manually run START-HERE.bat in the Strata folder.")
             except Exception as e:
                 log.warning(f"[BSAI-LLM-Strata] Auto-download error: {e}")
         t = threading.Thread(target=_worker, daemon=True)

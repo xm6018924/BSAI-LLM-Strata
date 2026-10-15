@@ -256,6 +256,40 @@ class StrataManager:
             return None
 
     @classmethod
+    def ensure_strata_venv(cls):
+        """Auto-create .venv and install Python dependencies if missing.
+        Returns the venv python path, or None on failure."""
+        install = cls.find_install()
+        if not install:
+            return None
+        venv_python = os.path.join(install, ".venv", "Scripts", "python.exe")
+        if os.path.exists(venv_python):
+            return venv_python
+        # Create venv using current ComfyUI Python
+        try:
+            print("[BSAI-LLM-Strata] 首次使用，正在自动创建 Strata 虚拟环境 (.venv) …")
+            subprocess.run(
+                [sys.executable, "-m", "venv", os.path.join(install, ".venv")],
+                check=True, timeout=120,
+            )
+            if not os.path.exists(venv_python):
+                print("[BSAI-LLM-Strata] 创建 .venv 失败。")
+                return None
+            # Install requirements
+            req_file = os.path.join(install, "requirements.txt")
+            if os.path.exists(req_file):
+                print("[BSAI-LLM-Strata] 正在安装 Strata Python 依赖 …")
+                subprocess.run(
+                    [venv_python, "-m", "pip", "install", "-r", req_file],
+                    check=True, timeout=300,
+                )
+            print("[BSAI-LLM-Strata] Strata 虚拟环境创建完成。")
+            return venv_python
+        except Exception as e:
+            print(f"[BSAI-LLM-Strata] 创建 .venv 失败: {e}")
+            return None
+
+    @classmethod
     def find_install(cls):
         if cls._detected_install is not None:
             return cls._detected_install
