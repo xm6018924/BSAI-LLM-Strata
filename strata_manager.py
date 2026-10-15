@@ -290,6 +290,40 @@ class StrataManager:
             return None
 
     @classmethod
+    def ensure_strata_engine(cls):
+        """Auto-run setup.py to download engine binary and prepare model data.
+        Uses --yes --no-start to skip interactive prompts.
+        Returns True on success, False on failure."""
+        install = cls.find_install()
+        if not install:
+            return False
+        venv_python = os.path.join(install, ".venv", "Scripts", "python.exe")
+        if not os.path.exists(venv_python):
+            venv_python = cls.ensure_strata_venv()
+            if not venv_python:
+                return False
+        # Check if run-*.bat already exists (engine already set up)
+        existing_runs = [f for f in os.listdir(install) if f.startswith("run-") and f.endswith(".bat")]
+        if existing_runs:
+            return True
+        # Run setup.py
+        try:
+            print("[BSAI-LLM-Strata] 首次使用，正在自动下载 Strata 引擎二进制并准备模型数据 …")
+            print("[BSAI-LLM-Strata] 这可能需要几分钟到十几分钟，请耐心等待 …")
+            subprocess.run(
+                [venv_python, "setup.py", "--yes", "--no-start",
+                 "--models-dir", STRATA_MODEL_DIR],
+                cwd=install,
+                check=True, timeout=1800,  # 30 min timeout
+            )
+            print("[BSAI-LLM-Strata] Strata 引擎安装完成。")
+            return True
+        except Exception as e:
+            print(f"[BSAI-LLM-Strata] 自动安装引擎失败: {e}")
+            print("[BSAI-LLM-Strata] 请手动运行 START-HERE.bat 完成安装。")
+            return False
+
+    @classmethod
     def find_install(cls):
         if cls._detected_install is not None:
             return cls._detected_install

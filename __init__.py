@@ -82,6 +82,15 @@ def _auto_download_engine_async():
                     log.info(f"[BSAI-LLM-Strata] Strata .venv ready: {venv_python}")
                 else:
                     log.warning("[BSAI-LLM-Strata] .venv not ready. Please manually run START-HERE.bat in the Strata folder.")
+                    return
+
+                # Step 3: download engine binary and prepare model data if missing
+                log.info("[BSAI-LLM-Strata] Checking Strata engine binary …")
+                ok = StrataManager.ensure_strata_engine()
+                if ok:
+                    log.info("[BSAI-LLM-Strata] Strata engine fully installed. Ready to use.")
+                else:
+                    log.warning("[BSAI-LLM-Strata] Engine setup incomplete. Please manually run START-HERE.bat.")
             except Exception as e:
                 log.warning(f"[BSAI-LLM-Strata] Auto-download error: {e}")
         t = threading.Thread(target=_worker, daemon=True)
