@@ -93,16 +93,51 @@ def _auto_download_engine_async():
                     log.warning("[BSAI-LLM-Strata] Engine setup incomplete. Please manually run START-HERE.bat.")
                     return
 
-                # Step 3.5: inject BSAI logo into Strata web UI
+                # Step 3.5: inject BSAI logo + patch Strata web UI
                 try:
+                    import shutil
+                    # Copy logo file
                     plugin_web = os.path.join(os.path.dirname(__file__), "web", "bsai-logo.png")
                     strata_web = os.path.join(install, "serve", "web", "bsai-logo.png")
-                    if os.path.exists(plugin_web) and not os.path.exists(strata_web):
-                        import shutil
+                    if os.path.exists(plugin_web):
                         shutil.copy2(plugin_web, strata_web)
-                        log.info("[BSAI-LLM-Strata] BSAI logo injected into Strata web UI.")
+
+                    # Patch server.py: add .png to supported static file types
+                    server_py = os.path.join(install, "serve", "server.py")
+                    if os.path.exists(server_py):
+                        with open(server_py, "r", encoding="utf-8") as f:
+                            content = f.read()
+                        # Check if already patched
+                        if '".png": "image/png"' not in content:
+                            old_types = '".svg": "image/svg+xml"}'
+                            new_types = '".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".ico": "image/x-icon"}'
+                            content = content.replace(old_types, new_types)
+                            with open(server_py, "w", encoding="utf-8") as f:
+                                f.write(content)
+                            log.info("[BSAI-LLM-Strata] Patched server.py to support .png files.")
+
+                    # Patch index.html: BSAI logo + title
+                    index_html = os.path.join(install, "serve", "web", "index.html")
+                    if os.path.exists(index_html):
+                        with open(index_html, "r", encoding="utf-8") as f:
+                            html = f.read()
+                        # Replace brand section if not already patched
+                        if "百声AI Strata" not in html:
+                            old_brand = '''<span class="st-header__brand" style="display:flex;align-items:center;gap:8px;">
+    <img src="web/bsai-logo.png" alt="BSAI" style="width:28px;height:28px;border-radius:50%;vertical-align:middle;">
+    Strata
+  </span>'''
+                            new_brand = '''<span class="st-header__brand" style="display:flex;align-items:center;gap:8px;">
+    <img src="web/bsai-logo.png?v=2" alt="BSAI" style="width:32px;height:32px;border-radius:50%;vertical-align:middle;">
+    <strong style="font-size:16px;">百声AI Strata</strong>
+  </span>'''
+                            html = html.replace(old_brand, new_brand)
+                            with open(index_html, "w", encoding="utf-8") as f:
+                                f.write(html)
+                            log.info("[BSAI-LLM-Strata] Patched index.html with BSAI branding.")
+
                 except Exception as e:
-                    log.debug(f"[BSAI-LLM-Strata] Logo inject skipped: {e}")
+                    log.debug(f"[BSAI-LLM-Strata] Web UI patch skipped: {e}")
 
                 # Step 4: auto-start Strata service in background
                 import socket as _socket
