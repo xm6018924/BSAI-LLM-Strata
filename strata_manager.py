@@ -438,27 +438,6 @@ class StrataManager:
             best_quant = None
             best_dir = None
             print("[BSAI-LLM-Strata] 未检测到已有模型，setup.py 将自动下载默认模型 …")
-        # Install NVIDIA CUDA libraries first (avoid setup.py's pinned version not found on PyPI)
-        # Use Tsinghua mirror directly for faster download in China
-        print("[BSAI-LLM-Strata] 安装 NVIDIA CUDA 库 (cuBLAS, CUDA runtime, ~0.4 GB) …")
-        r_cuda = subprocess.run(
-            [venv_python, "-m", "pip", "install", "--quiet", "--disable-pip-version-check",
-             "-i", "https://pypi.tuna.tsinghua.edu.cn/simple",
-             "nvidia-cublas", "nvidia-cuda-runtime"],
-            capture_output=True, text=True, timeout=600,
-        )
-        if r_cuda.returncode != 0:
-            print(f"[BSAI-LLM-Strata] 清华镜像源安装失败，尝试默认 PyPI 源 …")
-            r_cuda2 = subprocess.run(
-                [venv_python, "-m", "pip", "install", "--quiet", "--disable-pip-version-check",
-                 "nvidia-cublas", "nvidia-cuda-runtime"],
-                capture_output=True, text=True, timeout=600,
-            )
-            if r_cuda2.returncode != 0:
-                print(f"[BSAI-LLM-Strata] 警告: CUDA 库安装失败，setup.py 可能会报错:")
-                print(f"[BSAI-LLM-Strata] {r_cuda2.stderr[-300:] if r_cuda2.stderr else '(empty)'}")
-        else:
-            print("[BSAI-LLM-Strata] CUDA 库安装完成。")
         # Build setup.py args
         args = [venv_python, "setup.py", "--yes", "--no-start"]
         if best_quant:
@@ -654,8 +633,28 @@ class StrataManager:
         strata_exe = os.path.join(install, "engine", "strata.exe")
         strata_vision_exe = os.path.join(install, "engine", "strata-vision.exe")
         log_path = os.path.join(install, f"strata-{quant_lower}.log")
-        cuda_lib_dir = os.path.join(install, ".venv", "Lib", "site-packages",
-                                     "nvidia", "cu13", "bin", "x86_64")
+        # Auto-detect CUDA libraries: prefer ComfyUI's embedded Python (already has CUDA libs)
+        # fallback to .venv if we installed them manually
+        import sys
+        cuda_lib_dirs = []
+        # ComfyUI embedded Python site-packages
+        comfy_site = os.path.join(sys.prefix, "Lib", "site-packages")
+        for sub in ["nvidia", "nvidia", "nvidia"]:
+            for ver_dir in ["cu12", "cu13", "cu11"]:
+                p = os.path.join(comfy_site, sub, ver_dir, "bin", "x86_64")
+                if os.path.isdir(p):
+                    cuda_lib_dirs.append(p)
+                    break
+        # Also check .venv
+        venv_cuda = os.path.join(install, ".venv", "Lib", "site-packages",
+                                 "nvidia", "cu13", "bin", "x86_64")
+        if os.path.isdir(venv_cuda):
+            cuda_lib_dirs.append(venv_cuda)
+        # Deduplicate
+        cuda_lib_dirs = list(dict.fromkeys(cuda_lib_dirs))
+        if not cuda_lib_dirs:
+            # Fallback to expected path
+            cuda_lib_dirs = [venv_cuda]
 
         # Read existing json to preserve user-tuned args
         cfg = {}
@@ -715,7 +714,7 @@ class StrataManager:
             "log": log_path,
             "tokenizer": tokenizer_dir,
             "gpu": 0,
-            "lib_dirs": [cuda_lib_dir],
+            "lib_dirs": cuda_lib_dirs,
         }
 
         try:
