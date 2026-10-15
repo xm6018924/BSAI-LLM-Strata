@@ -454,11 +454,16 @@ class StrataManager:
                     print("[BSAI-LLM-Strata] 这可能需要几分钟到十几分钟，请耐心等待 …")
                 else:
                     print(f"[BSAI-LLM-Strata] 第 {attempt} 次重试自动安装引擎 …")
-                subprocess.run(
+                r = subprocess.run(
                     args,
                     cwd=install,
-                    check=True, timeout=1800,  # 30 min timeout
+                    capture_output=True, text=True, timeout=1800,  # 30 min timeout
                 )
+                if r.returncode != 0:
+                    print(f"[BSAI-LLM-Strata] setup.py 失败 (exit {r.returncode}):")
+                    print(f"[BSAI-LLM-Strata] stdout: {r.stdout[-500:] if r.stdout else '(empty)'}")
+                    print(f"[BSAI-LLM-Strata] stderr: {r.stderr[-500:] if r.stderr else '(empty)'}")
+                    raise subprocess.CalledProcessError(r.returncode, args, output=r.stdout, stderr=r.stderr)
                 # Verify run-*.bat was created
                 new_runs = [f for f in os.listdir(install) if f.startswith("run-") and f.endswith(".bat")]
                 if new_runs:
