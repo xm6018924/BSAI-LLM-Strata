@@ -426,6 +426,42 @@ class StrataManager:
         existing_runs = [f for f in os.listdir(install) if f.startswith("run-") and f.endswith(".bat")]
         if existing_runs:
             return True
+        # Check if engine binary already exists (e.g. copied manually)
+        strata_exe = os.path.join(install, "engine", "strata.exe")
+        if os.path.exists(strata_exe):
+            print("[BSAI-LLM-Strata] 检测到引擎二进制已存在，跳过下载步骤 …")
+            # Auto-detect available quants and generate json config + run-*.bat
+            available = cls._detect_available_quants()
+            if available:
+                best_quant, best_dir = available[0]
+                print(f"[BSAI-LLM-Strata] 检测到已有的量化模型: {best_quant}")
+                # Generate json config
+                ok_gen, msg_gen = cls._refresh_json_config(best_quant)
+                if ok_gen:
+                    print(f"[BSAI-LLM-Strata] 配置文件生成完成。")
+                    # Generate run-*.bat
+                    bat_name = f"run-{best_quant.lower().replace('_', '_')}.bat"
+                    # Map quant name to bat filename
+                    quant_map = {"Q2_0": "run-q2_0.bat", "IQ2_XS": "run-iq2_xs.bat",
+                                 "IQ3_XXS": "run-iq3_xxs.bat", "IQ3_S": "run-iq3_s.bat"}
+                    bat_name = quant_map.get(best_quant, f"run-{best_quant.lower()}.bat")
+                    bat_path = os.path.join(install, bat_name)
+                    if not os.path.exists(bat_path):
+                        json_name = f"strata-{best_quant.lower()}.json"
+                        bat_content = f'''@echo off
+title Strata {best_quant}
+cd /d "{install}"
+"{venv_python}" "{os.path.join(install, "serve", "server.py")}" "--engine" "strata" "--config" "{os.path.join(install, json_name)}" "--port" "8080" "--open"
+if errorlevel 1 pause
+'''
+                        with open(bat_path, "w", encoding="utf-8") as f:
+                            f.write(bat_content)
+                        print(f"[BSAI-LLM-Strata] 启动脚本已生成: {bat_name}")
+                    return True
+                else:
+                    print(f"[BSAI-LLM-Strata] 配置文件生成失败: {msg_gen}")
+            else:
+                print("[BSAI-LLM-Strata] 未检测到已有量化模型，需要运行 setup.py 准备模型数据。")
         # Auto-detect available quants
         available = cls._detect_available_quants()
         if available:
