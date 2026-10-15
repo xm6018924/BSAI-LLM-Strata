@@ -508,7 +508,9 @@ class StrataManager:
                         bat_content = f'''@echo off
 title Strata {best_quant}
 cd /d "{install}"
-"{venv_python}" "{os.path.join(install, "serve", "server.py")}" "--engine" "strata" "--config" "{os.path.join(install, json_name)}" "--port" "8080" "--open"
+REM Auto-open browser after 30 seconds (wait for engine to load)
+start /b cmd /c "timeout /t 30 /nobreak >nul && start http://127.0.0.1:8080/"
+"{venv_python}" "{os.path.join(install, "serve", "server.py")}" "--engine" "strata" "--config" "{os.path.join(install, json_name)}" "--port" "8080"
 if errorlevel 1 pause
 '''
                         with open(bat_path, "w", encoding="utf-8") as f:
