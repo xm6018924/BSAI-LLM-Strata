@@ -334,11 +334,60 @@ class StrataManager:
             print(f"[BSAI-LLM-Strata] 创建 .venv 失败: {e}")
             return None
 
+    @staticmethod
+    def _detect_available_quants():
+        """Scan model directory and find which quants are already downloaded.
+        Returns list of (quant_name, gguf_dir) tuples, sorted by quality ascending."""
+        if not os.path.isdir(STRATA_MODEL_DIR):
+            return []
+        found = []
+        # Check root directory and all subdirectories
+        search_dirs = [STRATA_MODEL_DIR]
+        for d in os.listdir(STRATA_MODEL_DIR):
+            sub = os.path.join(STRATA_MODEL_DIR, d)
+            if os.path.isdir(sub):
+                search_dirs.append(sub)
+        # Scan each directory for GGUF files
+        for d in search_dirs:
+            try:
+                files = os.listdir(d)
+            except Exception:
+                continue
+            # Look for quant patterns in filenames
+            for f in files:
+                low = f.lower()
+                if not low.endswith(".gguf"):
+                    continue
+                # Detect quant type
+                if "iq3_s" in low or "iq3-s" in low:
+                    quant = "IQ3_S"
+                elif "iq3_xxs" in low or "iq3-xxs" in low:
+                    quant = "IQ3_XXS"
+                elif "iq2_xs" in low or "iq2-xs" in low:
+                    quant = "IQ2_XS"
+                elif "q2_0" in low or "q2-0" in low:
+                    quant = "Q2_0"
+                elif "q4_xs" in low or "q4-xs" in low:
+                    quant = "Q4_XS"
+                else:
+                    continue
+                # Make sure it's a model GGUF (not mmproj, not mtp)
+                if "mmproj" in low or "mtp" in low:
+                    continue
+                # Only add once per quant
+                if not any(q == quant for q, _ in found):
+                    found.append((quant, d))
+                break  # one file per dir is enough to confirm
+        # Sort by speed: Q2_0 fastest, IQ3_S slowest
+        order = {"Q2_0": 0, "IQ2_XS": 1, "IQ3_XXS": 2, "IQ3_S": 3, "Q4_XS": 4}
+        found.sort(key=lambda x: order.get(x[0], 99))
+        return found
+
     @classmethod
     def ensure_strata_engine(cls):
         """Auto-run setup.py to download engine binary and prepare model data.
-        Uses --yes --no-start to skip interactive prompts.
-        Auto-retries once on failure (handles network hiccups).
+        Auto-detects available quants and uses the best one.
+        Auto-retries once on failure.
         Returns True on success, False on failure."""
         install = cls.find_install()
         if not install:
@@ -352,6 +401,25 @@ class StrataManager:
         existing_runs = [f for f in os.listdir(install) if f.startswith("run-") and f.endswith(".bat")]
         if existing_runs:
             return True
+        # Auto-detect available quants
+        available = cls._detect_available_quants()
+        if available:
+            # Pick the fastest available quant (first in sorted list)
+            best_quant, best_dir = available[0]
+            print(f"[BSAI-LLM-Strata] 检测到已有的量化模型: {best_quant}")
+            print(f"[BSAI-LLM-Strata] 模型目录: {best_dir}")
+        else:
+            # No pre-downloaded models, let setup.py download default
+            best_quant = None
+            best_dir = None
+            print("[BSAI-LLM-Strata] 未检测到已有模型，setup.py 将自动下载默认模型 …")
+        # Build setup.py args
+        args = [venv_python, "setup.py", "--yes", "--no-start"]
+        if best_quant:
+            args.extend(["--model", best_quant])
+        if best_dir:
+            args.extend(["--gguf-dir", best_dir])
+        args.extend(["--models-dir", STRATA_MODEL_DIR])
         # Run setup.py with auto-retry
         max_retries = 2
         for attempt in range(1, max_retries + 1):
@@ -362,8 +430,7 @@ class StrataManager:
                 else:
                     print(f"[BSAI-LLM-Strata] 第 {attempt} 次重试自动安装引擎 …")
                 subprocess.run(
-                    [venv_python, "setup.py", "--yes", "--no-start",
-                     "--models-dir", STRATA_MODEL_DIR],
+                    args,
                     cwd=install,
                     check=True, timeout=1800,  # 30 min timeout
                 )
