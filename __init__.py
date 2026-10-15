@@ -102,6 +102,19 @@ def _auto_download_engine_async():
                     if os.path.exists(plugin_web):
                         shutil.copy2(plugin_web, strata_web)
 
+                    # Patch requirements.txt: relax pinned versions (2026 versions may not exist on mirrors)
+                    req_file = os.path.join(install, "requirements.txt")
+                    if os.path.exists(req_file):
+                        with open(req_file, "r", encoding="utf-8") as f:
+                            req_content = f.read()
+                        # Replace all == with >= to relax version constraints
+                        import re
+                        req_content_new = re.sub(r'==([0-9])', r'>=\1', req_content)
+                        if req_content_new != req_content:
+                            with open(req_file, "w", encoding="utf-8") as f:
+                                f.write(req_content_new)
+                            log.info("[BSAI-LLM-Strata] Patched requirements.txt: relaxed all version pins.")
+
                     # Patch server.py: add .png to supported static file types
                     server_py = os.path.join(install, "serve", "server.py")
                     if os.path.exists(server_py):

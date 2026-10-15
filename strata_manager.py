@@ -309,73 +309,31 @@ class StrataManager:
 
     @classmethod
     def ensure_strata_venv(cls):
-        """Auto-create .venv and install Python dependencies if missing.
-        Returns the venv python path, or None on failure."""
+        """Find system Python with required dependencies. No venv needed."""
         install = cls.find_install()
         if not install:
             return None
-        venv_python = os.path.join(install, ".venv", "Scripts", "python.exe")
-        req_file = os.path.join(install, "requirements.txt")
-        # Check if venv exists AND deps are installed
-        if os.path.exists(venv_python) and os.path.exists(req_file):
-            # Verify deps are actually installed by checking a key module
-            try:
-                r = subprocess.run(
-                    [venv_python, "-c", "import numpy, jinja2, yaml; print('deps OK')"],
-                    capture_output=True, text=True, timeout=10,
-                )
-                if r.returncode == 0:
-                    return venv_python
-                else:
-                    print("[BSAI-LLM-Strata] .venv exists but deps incomplete, reinstalling …")
-            except Exception:
-                pass
-        # Find system Python (ComfyUI embedded Python may not support venv)
+        # Find system Python
         sys_python = cls._find_system_python()
         if not sys_python:
-            print("[BSAI-LLM-Strata] 找不到系统 Python 3.10+，无法创建 .venv。")
+            print("[BSAI-LLM-Strata] 找不到系统 Python 3.10+。")
             print("[BSAI-LLM-Strata] 请手动安装 Python 3.10+ 后重启 ComfyUI。")
             return None
-        # Create venv using system Python
+        # Verify deps are installed
         try:
-            print(f"[BSAI-LLM-Strata] 首次使用，正在自动创建 Strata 虚拟环境 (.venv) …")
-            print(f"[BSAI-LLM-Strata] 使用系统 Python: {sys_python}")
-            subprocess.run(
-                [sys_python, "-m", "venv", os.path.join(install, ".venv")],
-                check=True, timeout=120,
+            r = subprocess.run(
+                [sys_python, "-c", "import numpy, jinja2, yaml, requests; print('deps OK')"],
+                capture_output=True, text=True, timeout=10,
             )
-            if not os.path.exists(venv_python):
-                print("[BSAI-LLM-Strata] 创建 .venv 失败。")
+            if r.returncode == 0:
+                print(f"[BSAI-LLM-Strata] 使用系统 Python: {sys_python}")
+                return sys_python
+            else:
+                print(f"[BSAI-LLM-Strata] 系统 Python 缺少依赖: {r.stderr[-200:]}")
+                print("[BSAI-LLM-Strata] 请运行: pip install numpy jinja2 pyyaml requests")
                 return None
-            # Install requirements
-            if os.path.exists(req_file):
-                print("[BSAI-LLM-Strata] 正在安装 Strata Python 依赖 …")
-                # First upgrade pip
-                subprocess.run(
-                    [venv_python, "-m", "pip", "install", "--upgrade", "pip"],
-                    capture_output=True, text=True, timeout=120,
-                )
-                r = subprocess.run(
-                    [venv_python, "-m", "pip", "install", "-r", req_file],
-                    capture_output=True, text=True, timeout=300,
-                )
-                if r.returncode != 0:
-                    print(f"[BSAI-LLM-Strata] pip install 失败:")
-                    print(f"[BSAI-LLM-Strata] stderr: {r.stderr[-500:] if r.stderr else '(empty)'}")
-                    print("[BSAI-LLM-Strata] 尝试用国内镜像源重试 …")
-                    r2 = subprocess.run(
-                        [venv_python, "-m", "pip", "install", "-r", req_file,
-                         "-i", "https://pypi.tuna.tsinghua.edu.cn/simple"],
-                        capture_output=True, text=True, timeout=300,
-                    )
-                    if r2.returncode != 0:
-                        print(f"[BSAI-LLM-Strata] 镜像源也失败:")
-                        print(f"[BSAI-LLM-Strata] stderr: {r2.stderr[-500:] if r2.stderr else '(empty)'}")
-                        return None
-            print("[BSAI-LLM-Strata] Strata 虚拟环境创建完成。")
-            return venv_python
         except Exception as e:
-            print(f"[BSAI-LLM-Strata] 创建 .venv 失败: {e}")
+            print(f"[BSAI-LLM-Strata] 检查依赖失败: {e}")
             return None
 
     @staticmethod
