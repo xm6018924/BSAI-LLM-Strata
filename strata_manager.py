@@ -427,8 +427,17 @@ class StrataManager:
         if existing_runs:
             return True
         # Check if engine binary already exists (e.g. copied manually)
-        strata_exe = os.path.join(install, "engine", "strata.exe")
-        if os.path.exists(strata_exe):
+        # Check both common locations: engine/strata.exe and ./strata.exe
+        strata_exe_paths = [
+            os.path.join(install, "engine", "strata.exe"),
+            os.path.join(install, "strata.exe"),
+        ]
+        strata_exe = None
+        for p in strata_exe_paths:
+            if os.path.exists(p):
+                strata_exe = p
+                break
+        if strata_exe:
             print("[BSAI-LLM-Strata] 检测到引擎二进制已存在，跳过下载步骤 …")
             # Auto-detect available quants and generate json config + run-*.bat
             available = cls._detect_available_quants()
