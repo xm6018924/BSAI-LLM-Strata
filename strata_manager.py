@@ -301,8 +301,21 @@ class StrataManager:
         if not install:
             return None
         venv_python = os.path.join(install, ".venv", "Scripts", "python.exe")
-        if os.path.exists(venv_python):
-            return venv_python
+        req_file = os.path.join(install, "requirements.txt")
+        # Check if venv exists AND deps are installed
+        if os.path.exists(venv_python) and os.path.exists(req_file):
+            # Verify deps are actually installed by checking a key module
+            try:
+                r = subprocess.run(
+                    [venv_python, "-c", "import numpy, jinja2, yaml; print('deps OK')"],
+                    capture_output=True, text=True, timeout=10,
+                )
+                if r.returncode == 0:
+                    return venv_python
+                else:
+                    print("[BSAI-LLM-Strata] .venv exists but deps incomplete, reinstalling …")
+            except Exception:
+                pass
         # Find system Python (ComfyUI embedded Python may not support venv)
         sys_python = cls._find_system_python()
         if not sys_python:
@@ -321,13 +334,25 @@ class StrataManager:
                 print("[BSAI-LLM-Strata] 创建 .venv 失败。")
                 return None
             # Install requirements
-            req_file = os.path.join(install, "requirements.txt")
             if os.path.exists(req_file):
                 print("[BSAI-LLM-Strata] 正在安装 Strata Python 依赖 …")
-                subprocess.run(
+                r = subprocess.run(
                     [venv_python, "-m", "pip", "install", "-r", req_file],
-                    check=True, timeout=300,
+                    capture_output=True, text=True, timeout=300,
                 )
+                if r.returncode != 0:
+                    print(f"[BSAI-LLM-Strata] pip install 失败:")
+                    print(f"[BSAI-LLM-Strata] stderr: {r.stderr[-500:] if r.stderr else '(empty)'}")
+                    print("[BSAI-LLM-Strata] 尝试用国内镜像源重试 …")
+                    r2 = subprocess.run(
+                        [venv_python, "-m", "pip", "install", "-r", req_file,
+                         "-i", "https://pypi.tuna.tsinghua.edu.cn/simple"],
+                        capture_output=True, text=True, timeout=300,
+                    )
+                    if r2.returncode != 0:
+                        print(f"[BSAI-LLM-Strata] 镜像源也失败:")
+                        print(f"[BSAI-LLM-Strata] stderr: {r2.stderr[-500:] if r2.stderr else '(empty)'}")
+                        return None
             print("[BSAI-LLM-Strata] Strata 虚拟环境创建完成。")
             return venv_python
         except Exception as e:
