@@ -919,32 +919,25 @@ function addFiles(files) {
       r.readAsDataURL(f);
       continue;
     }
-    // Video files: extract keyframes via backend
+    // Video files: extract keyframes in browser using Canvas
     if (f.type.startsWith("video/")) {
       if (f.size > 500e6) { toast("warn", "Video too large", `${f.name} is over 500 MB.`); continue; }
       toast("info", "Processing video", `Extracting keyframes from ${f.name}...`);
-      // Send video to backend for frame extraction
-      fetch("/v1/video/extract-frames", {
-        method: "POST",
-        body: f
-      })
-      .then(r => r.json())
-      .then(data => {
-        if (data.frames && data.frames.length) {
+      extractVideoFrames(f).then(result => {
+        if (result.frames && result.frames.length) {
           // Add video info text
-          attachments.push({kind: "file", name: f.name, text: `[Video: ${f.name}, duration: ${data.duration?.toFixed(1) || "?"}s, extracted ${data.frames.length} keyframes]`});
+          attachments.push({kind: "file", name: f.name, text: `[Video: ${f.name}, duration: ${result.duration?.toFixed(1) || "?"}s, extracted ${result.frames.length} keyframes]`});
           // Add extracted frames as images
-          data.frames.forEach((frame, i) => {
+          result.frames.forEach((frame, i) => {
             attachments.push({kind: "image", name: `${f.name} @ ${frame.timestamp}s`, url: frame.data});
           });
           renderAttachments();
-          toast("ok", "Video processed", `Extracted ${data.frames.length} keyframes from ${f.name}`);
+          toast("ok", "Video processed", `Extracted ${result.frames.length} keyframes from ${f.name}`);
         } else {
           attachments.push({kind: "file", name: f.name, text: `[Video file: ${f.name}, size: ${(f.size / 1024 / 1024).toFixed(1)} MB]`});
           renderAttachments();
         }
-      })
-      .catch(err => {
+      }).catch(err => {
         console.error("Video frame extraction failed:", err);
         attachments.push({kind: "file", name: f.name, text: `[Video file: ${f.name}, size: ${(f.size / 1024 / 1024).toFixed(1)} MB]`});
         renderAttachments();
@@ -963,6 +956,64 @@ function addFiles(files) {
     };
     r.readAsText(f);
   }
+}
+
+// Extract keyframes from video in browser using Canvas API
+function extractVideoFrames(file) {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.muted = true;
+    video.playsInline = true;
+    
+    const url = URL.createObjectURL(file);
+    video.src = url;
+    
+    video.onloadedmetadata = () => {
+      const duration = video.duration;
+      // Extract 3 frames at 25%, 50%, 75%
+      const timestamps = [duration * 0.25, duration * 0.5, duration * 0.75];
+      const frames = [];
+      
+      let frameIndex = 0;
+      
+      const captureNextFrame = () => {
+        if (frameIndex >= timestamps.length) {
+          URL.revokeObjectURL(url);
+          resolve({ frames, duration });
+          return;
+        }
+        
+        const ts = timestamps[frameIndex];
+        video.currentTime = ts;
+        
+        video.onseeked = () => {
+          // Create canvas and draw video frame
+          const canvas = document.createElement('canvas');
+          const maxWidth = 1024;
+          const scale = Math.min(1, maxWidth / video.videoWidth);
+          canvas.width = video.videoWidth * scale;
+          canvas.height = video.videoHeight * scale;
+          
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          frames.push({ timestamp: ts, data: dataUrl });
+          
+          frameIndex++;
+          captureNextFrame();
+        };
+      };
+      
+      captureNextFrame();
+    };
+    
+    video.onerror = (e) => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Failed to load video'));
+    };
+  });
 }
 // a file's text in the message, fenced with more backticks than it contains itself
 function fileBlock(f) {
