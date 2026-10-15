@@ -181,7 +181,14 @@ def _auto_download_engine_async():
                         comfy_root = os.path.dirname(folder_paths.base_path) if hasattr(folder_paths, 'base_path') else os.path.dirname(os.path.dirname(install))
                         run_bat = os.path.join(install, "run-q2_0.bat")
                         shortcut_path = os.path.join(comfy_root, "启动Strata服务.lnk")
-                        ico_path = os.path.join(os.path.dirname(__file__), "web", "bsai-logo.ico")
+                        ico_src = os.path.join(os.path.dirname(__file__), "web", "bsai-logo.ico")
+                        # Copy ICO to user dir
+                        user_dir = os.path.join(comfy_root, "user")
+                        os.makedirs(user_dir, exist_ok=True)
+                        ico_dst = os.path.join(user_dir, "bsai-logo.ico")
+                        if os.path.exists(ico_src):
+                            import shutil
+                            shutil.copy2(ico_src, ico_dst)
                         if os.path.exists(run_bat) and not os.path.exists(shortcut_path):
                             import subprocess
                             ps_script = f'''
@@ -190,7 +197,7 @@ def _auto_download_engine_async():
                             $shortcut.TargetPath = "{run_bat}"
                             $shortcut.WorkingDirectory = "{install}"
                             $shortcut.Description = "启动百声AI Strata 大模型服务"
-                            $shortcut.IconLocation = "{ico_path},0"
+                            $shortcut.IconLocation = "{ico_dst},0"
                             $shortcut.Save()
                             '''
                             subprocess.run(["powershell", "-Command", ps_script], capture_output=True, timeout=10)
