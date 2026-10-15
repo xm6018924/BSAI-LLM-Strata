@@ -671,8 +671,16 @@ if errorlevel 1 pause
         quant_lower, quant_upper = cls._QUANT_JSON_MAP[quant_label]
         json_path = os.path.join(install, f"strata-{quant_lower}.json")
 
-        # Locate gguf files in the quant subdir
-        gguf_dir = os.path.join(STRATA_MODEL_DIR, quant_upper)
+        # Locate gguf files: use _detect_available_quants to find the actual directory
+        available = cls._detect_available_quants()
+        gguf_dir = None
+        for q, d in available:
+            if q == quant_upper:
+                gguf_dir = d
+                break
+        if not gguf_dir:
+            # Fallback to expected subdir
+            gguf_dir = os.path.join(STRATA_MODEL_DIR, quant_upper)
         if not os.path.isdir(gguf_dir):
             return False, f"gguf dir not found: {gguf_dir}"
         ggufs = sorted([f for f in os.listdir(gguf_dir) if f.endswith(".gguf")])
