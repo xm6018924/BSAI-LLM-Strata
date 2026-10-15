@@ -96,8 +96,46 @@ class ManagerHandler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(data).encode())
     
+    def send_html(self, html, status=200):
+        self.send_response(status)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.end_headers()
+        self.wfile.write(html.encode("utf-8"))
+    
     def do_GET(self):
-        if self.path == "/api/models":
+        if self.path == "/" or self.path == "/wait":
+            # Waiting page: auto-redirect when 8080 is ready
+            html = '''<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>BSAI Strata - Loading</title>
+  <style>
+    body { background: #1a1a2e; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: Arial, sans-serif; }
+    .spinner { font-size: 64px; margin-bottom: 20px; }
+    .title { font-size: 24px; margin-bottom: 10px; }
+    .sub { font-size: 16px; color: #888; }
+  </style>
+</head>
+<body>
+  <div class="spinner">🔄</div>
+  <div class="title">BSAI Strata 正在加载...</div>
+  <div class="sub">首次启动需要 1-2 分钟，请耐心等待，页面会自动跳转</div>
+  <script>
+    async function checkReady() {
+      try {
+        const r = await fetch("http://127.0.0.1:8080/v1/models", {mode: "no-cors"});
+        window.location.href = "http://127.0.0.1:8080/";
+      } catch (e) {
+        setTimeout(checkReady, 2000);
+      }
+    }
+    checkReady();
+  </script>
+</body>
+</html>'''
+            self.send_html(html)
+        elif self.path == "/api/models":
             self.send_json({
                 "current": current_model,
                 "models": MODELS
@@ -141,20 +179,29 @@ def main():
     initial_model = sys.argv[1] if len(sys.argv) > 1 else "IQ3_XXS"
     
     print(f"[BSAI Manager] Starting with model: {initial_model}")
-    print(f"[BSAI Manager] Manager API: http://127.0.0.1:{MANAGER_PORT}")
-    print(f"[BSAI Manager] Web UI: http://127.0.0.1:{STRATA_PORT}")
+    print(f"[BSAI Manager] Waiting page: http://127.0.0.1:{MANAGER_PORT}/")
+    print(f"[BSAI Manager] Web UI will open automatically when ready")
     
-    # Start Strata engine
-    start_strata(initial_model)
+    # Start HTTP manager server first (so waiting page is available)
+    httpd = socketserver.TCPServer(("127.0.0.1", MANAGER_PORT), ManagerHandler)
+    manager_thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    manager_thread.start()
     
-    # Auto-open browser
+    # Open waiting page immediately
     import webbrowser
-    webbrowser.open(f"http://127.0.0.1:{STRATA_PORT}/")
+    webbrowser.open(f"http://127.0.0.1:{MANAGER_PORT}/")
     
-    # Start HTTP manager server
-    with socketserver.TCPServer(("127.0.0.1", MANAGER_PORT), ManagerHandler) as httpd:
-        print(f"[BSAI Manager] Ready! Switch models in About page.")
-        httpd.serve_forever()
+    # Start Strata engine in background
+    threading.Thread(target=start_strata, args=(initial_model,), daemon=True).start()
+    
+    print(f"[BSAI Manager] Ready! Waiting for engine to load...")
+    
+    # Keep main thread alive
+    try:
+        while True:
+            time.sleep(3600)
+    except KeyboardInterrupt:
+        httpd.shutdown()
 
 
 if __name__ == "__main__":
