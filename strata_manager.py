@@ -657,9 +657,9 @@ class StrataManager:
             return default
 
         spec_val = _get_arg("--spec", "8")
-        kv_resident_val = _get_arg("--kv-resident", "16384")
-        vram_reserve_val = _get_arg("--vram-reserve-mib", "200")
-        max_context_val = _get_arg("--max-context", "65536")
+        kv_resident_val = _get_arg("--kv-resident", "8192")
+        vram_reserve_val = _get_arg("--vram-reserve-mib", "2000")
+        max_context_val = _get_arg("--max-context", "32768")
 
         # Build new args with correct paths + preserved tuning
         new_args = [
@@ -674,7 +674,6 @@ class StrataManager:
             "--max-context", max_context_val,
             "--kv", "q4_0",
             "--kv-resident", kv_resident_val,
-            "--vision",
             "--vram-reserve-mib", vram_reserve_val,
         ]
 
