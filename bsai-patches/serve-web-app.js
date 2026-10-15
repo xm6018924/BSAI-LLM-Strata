@@ -1356,7 +1356,22 @@ async function switchModel(model) {
   if (!confirm(`确定要切换到 ${model} 模型吗？\n引擎将重启，需要等待 1-2 分钟。`)) {
     return;
   }
-  $("model-status").textContent = `正在切换到 ${model}... 请等待`;
+  
+  // Show fullscreen loading overlay
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.95); z-index: 9999;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: white; font-size: 24px; gap: 20px;
+  `;
+  overlay.innerHTML = `
+    <div style="font-size: 48px;">🔄</div>
+    <div>正在切换到 ${model} 模型...</div>
+    <div style="font-size: 16px; color: #888;">引擎重启中，请稍候，页面会自动恢复</div>
+  `;
+  document.body.appendChild(overlay);
+  
   try {
     const r = await fetch(`${MANAGER_URL}/api/switch`, {
       method: "POST",
@@ -1365,7 +1380,6 @@ async function switchModel(model) {
     });
     const j = await r.json();
     if (j.error) throw new Error(j.error);
-    toast("ok", "正在切换模型", `等待引擎重启，请稍候...`);
     
     // Poll for engine ready
     let tries = 0;
@@ -1374,25 +1388,31 @@ async function switchModel(model) {
       try {
         const r = await fetch(`${MANAGER_URL}/api/current`);
         const j = await r.json();
-        if (j.current === model && tries > 10) {
+        if (j.current === model && tries > 5) {
           clearInterval(checkReady);
-          toast("ok", "切换完成", `已切换到 ${model} 模型`);
-          highlightCurrentModel(model);
-          $("model-status").textContent = `当前模型: ${model}`;
-          // Reload page to refresh health
-          setTimeout(() => location.reload(), 1000);
+          // Wait a bit more for engine to fully load
+          setTimeout(() => {
+            location.reload();
+          }, 2000);
         }
       } catch (e) {
         // Still waiting
       }
       if (tries > 90) {
         clearInterval(checkReady);
-        $("model-status").textContent = "切换超时，请手动刷新页面。";
+        overlay.innerHTML = `
+          <div style="font-size: 48px;">⚠️</div>
+          <div>切换超时</div>
+          <div style="font-size: 16px; color: #888;">请手动刷新页面</div>
+        `;
       }
     }, 2000);
   } catch (e) {
-    toast("error", "切换失败", String(e.message || e));
-    $("model-status").textContent = "切换失败: " + (e.message || e);
+    overlay.innerHTML = `
+      <div style="font-size: 48px;">❌</div>
+      <div>切换失败</div>
+      <div style="font-size: 16px; color: #888;">${e.message || e}</div>
+    `;
   }
 }
 
