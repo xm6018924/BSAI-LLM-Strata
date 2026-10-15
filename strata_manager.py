@@ -504,13 +504,12 @@ class StrataManager:
                     bat_name = quant_map.get(best_quant, f"run-{best_quant.lower()}.bat")
                     bat_path = os.path.join(install, bat_name)
                     if not os.path.exists(bat_path):
-                        json_name = f"strata-{best_quant.lower()}.json"
                         bat_content = f'''@echo off
-title Strata {best_quant}
+title BSAI Strata {best_quant}
 cd /d "{install}"
 REM Auto-open browser after 30 seconds (wait for engine to load)
 start /b cmd /c "timeout /t 30 /nobreak >nul && start http://127.0.0.1:8080/"
-"{venv_python}" "{os.path.join(install, "serve", "server.py")}" "--engine" "strata" "--config" "{os.path.join(install, json_name)}" "--port" "8080"
+"{venv_python}" "bsai_model_manager.py" "{best_quant}"
 if errorlevel 1 pause
 '''
                         with open(bat_path, "w", encoding="utf-8") as f:

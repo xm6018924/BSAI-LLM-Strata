@@ -17,13 +17,14 @@ from pathlib import Path
 MANAGER_PORT = 8081
 STRATA_PORT = 8080
 INSTALL_DIR = Path(__file__).parent
+PYTHON_EXE = sys.executable
 
 # Model options
 MODELS = {
-    "Q2_0": {"bat": "run-q2_0.bat", "desc": "最快 / fastest"},
-    "IQ2_XS": {"bat": "run-iq2_xs.bat", "desc": "略好 / better"},
-    "IQ3_XXS": {"bat": "run-iq3_xxs.bat", "desc": "更好 / good"},
-    "IQ3_S": {"bat": "run-iq3_s.bat", "desc": "最好质量 / best quality"},
+    "Q2_0": {"json": "strata-q2_0.json", "desc": "最快 / fastest"},
+    "IQ2_XS": {"json": "strata-iq2_xs.json", "desc": "略好 / better"},
+    "IQ3_XXS": {"json": "strata-iq3_xxs.json", "desc": "更好 / good"},
+    "IQ3_S": {"json": "strata-iq3_s.json", "desc": "最好质量 / best quality"},
 }
 
 current_process = None
@@ -51,12 +52,14 @@ def start_strata(model_name):
         if model_name not in MODELS:
             raise ValueError(f"Unknown model: {model_name}")
         
-        bat_file = INSTALL_DIR / MODELS[model_name]["bat"]
-        if not bat_file.exists():
-            raise FileNotFoundError(f"Bat file not found: {bat_file}")
+        json_file = INSTALL_DIR / MODELS[model_name]["json"]
+        if not json_file.exists():
+            raise FileNotFoundError(f"Config file not found: {json_file}")
+        
+        server_py = INSTALL_DIR / "serve" / "server.py"
         
         current_process = subprocess.Popen(
-            ["cmd", "/c", str(bat_file)],
+            [PYTHON_EXE, str(server_py), "--engine", "strata", "--config", str(json_file), "--port", str(STRATA_PORT)],
             cwd=str(INSTALL_DIR),
             creationflags=subprocess.CREATE_NEW_CONSOLE
         )
@@ -125,6 +128,10 @@ class ManagerHandler(http.server.BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
+    
+    def log_message(self, format, *args):
+        # Suppress logs
+        pass
 
 
 def main():
@@ -134,13 +141,19 @@ def main():
     initial_model = sys.argv[1] if len(sys.argv) > 1 else "IQ3_XXS"
     
     print(f"[BSAI Manager] Starting with model: {initial_model}")
+    print(f"[BSAI Manager] Manager API: http://127.0.0.1:{MANAGER_PORT}")
+    print(f"[BSAI Manager] Web UI: http://127.0.0.1:{STRATA_PORT}")
     
     # Start Strata engine
     start_strata(initial_model)
     
+    # Auto-open browser
+    import webbrowser
+    webbrowser.open(f"http://127.0.0.1:{STRATA_PORT}/")
+    
     # Start HTTP manager server
     with socketserver.TCPServer(("127.0.0.1", MANAGER_PORT), ManagerHandler) as httpd:
-        print(f"[BSAI Manager] Manager server running on http://127.0.0.1:{MANAGER_PORT}")
+        print(f"[BSAI Manager] Ready! Switch models in About page.")
         httpd.serve_forever()
 
 
