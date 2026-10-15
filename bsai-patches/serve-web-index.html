@@ -177,6 +177,37 @@
   <section class="view view--about" id="view-about" role="tabpanel" aria-labelledby="tab-btn-about" hidden>
     <div class="about">
       <div class="st-card">
+        <span class="card-title">BSAI 模型选择 / Model Selection</span>
+        <p class="muted small" style="margin-bottom:12px;">切换模型需要关闭当前引擎，然后运行对应的启动脚本。</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div style="padding:12px;background:rgba(0,212,255,0.1);border-radius:8px;border:1px solid rgba(0,212,255,0.3);">
+            <div style="font-weight:bold;color:#00d4ff;margin-bottom:4px;">⚡ Auto (自动适配)</div>
+            <div class="muted small">自动检测显存，选择最优量化</div>
+            <div class="muted small" style="margin-top:8px;font-family:monospace;">run-auto.bat</div>
+          </div>
+          <div style="padding:12px;background:rgba(255,255,255,0.05);border-radius:8px;">
+            <div style="font-weight:bold;margin-bottom:4px;">🚀 Q2_0 (最快)</div>
+            <div class="muted small">速度最快，显存占用最小</div>
+            <div class="muted small" style="margin-top:8px;font-family:monospace;">run-q2_0.bat</div>
+          </div>
+          <div style="padding:12px;background:rgba(255,255,255,0.05);border-radius:8px;">
+            <div style="font-weight:bold;margin-bottom:4px;">⚖️ IQ2_XS (略好)</div>
+            <div class="muted small">速度与质量平衡</div>
+            <div class="muted small" style="margin-top:8px;font-family:monospace;">run-iq2_xs.bat</div>
+          </div>
+          <div style="padding:12px;background:rgba(255,255,255,0.05);border-radius:8px;">
+            <div style="font-weight:bold;margin-bottom:4px;">🎯 IQ3_XXS (更好)</div>
+            <div class="muted small">质量更好，速度适中</div>
+            <div class="muted small" style="margin-top:8px;font-family:monospace;">run-iq3_xxs.bat</div>
+          </div>
+          <div style="padding:12px;background:rgba(255,255,255,0.05);border-radius:8px;grid-column:span 2;">
+            <div style="font-weight:bold;margin-bottom:4px;">💎 IQ3_S (最好质量)</div>
+            <div class="muted small">质量最高，显存占用最大，适合高配电脑</div>
+            <div class="muted small" style="margin-top:8px;font-family:monospace;">run-iq3_s.bat</div>
+          </div>
+        </div>
+      </div>
+      <div class="st-card">
         <span class="card-title">Model and engine</span>
         <dl class="facts" id="facts-engine"></dl>
       </div>
