@@ -255,6 +255,44 @@ class StrataManager:
             print(f"[BSAI-LLM-Strata] 自动下载 Strata 失败: {e}")
             return None
 
+    @staticmethod
+    def _find_system_python():
+        """Find a system Python 3.10+ that supports venv creation.
+        ComfyUI embedded Python may not have venv.__main__."""
+        candidates = []
+        # py launcher
+        try:
+            r = subprocess.run(["py", "-3", "-c", "import sys; print(sys.executable)"],
+                             capture_output=True, text=True, timeout=5)
+            if r.returncode == 0 and r.stdout.strip():
+                candidates.append(r.stdout.strip())
+        except Exception:
+            pass
+        # python on PATH
+        try:
+            r = subprocess.run(["python", "-c", "import sys; print(sys.executable)"],
+                             capture_output=True, text=True, timeout=5)
+            if r.returncode == 0 and r.stdout.strip():
+                candidates.append(r.stdout.strip())
+        except Exception:
+            pass
+        # Common install paths
+        local_appdata = os.environ.get("LOCALAPPDATA", "")
+        for ver in ("313", "312", "311", "310"):
+            p = os.path.join(local_appdata, "Programs", "Python", f"Python{ver}", "python.exe")
+            if os.path.exists(p):
+                candidates.append(p)
+        # Validate each candidate can run venv
+        for p in candidates:
+            try:
+                r = subprocess.run([p, "-c", "import venv; print('venv OK')"],
+                                 capture_output=True, text=True, timeout=5)
+                if r.returncode == 0:
+                    return p
+            except Exception:
+                continue
+        return None
+
     @classmethod
     def ensure_strata_venv(cls):
         """Auto-create .venv and install Python dependencies if missing.
@@ -265,11 +303,18 @@ class StrataManager:
         venv_python = os.path.join(install, ".venv", "Scripts", "python.exe")
         if os.path.exists(venv_python):
             return venv_python
-        # Create venv using current ComfyUI Python
+        # Find system Python (ComfyUI embedded Python may not support venv)
+        sys_python = cls._find_system_python()
+        if not sys_python:
+            print("[BSAI-LLM-Strata] 找不到系统 Python 3.10+，无法创建 .venv。")
+            print("[BSAI-LLM-Strata] 请手动安装 Python 3.10+ 后重启 ComfyUI。")
+            return None
+        # Create venv using system Python
         try:
-            print("[BSAI-LLM-Strata] 首次使用，正在自动创建 Strata 虚拟环境 (.venv) …")
+            print(f"[BSAI-LLM-Strata] 首次使用，正在自动创建 Strata 虚拟环境 (.venv) …")
+            print(f"[BSAI-LLM-Strata] 使用系统 Python: {sys_python}")
             subprocess.run(
-                [sys.executable, "-m", "venv", os.path.join(install, ".venv")],
+                [sys_python, "-m", "venv", os.path.join(install, ".venv")],
                 check=True, timeout=120,
             )
             if not os.path.exists(venv_python):
