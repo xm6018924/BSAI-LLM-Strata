@@ -1421,3 +1421,67 @@ document.querySelectorAll(".model-item").forEach(el => {
   el.addEventListener("click", () => switchModel(el.dataset.model));
 });
 loadCurrentModel();
+
+// ========== BSAI Bottom Model Switcher ==========
+const MANAGER_URL = "http://127.0.0.1:8081";
+const BS_MODELS = {
+  "Q2_0": "🚀 Q2_0 最快",
+  "IQ2_XS": "⚖️ IQ2_XS 平衡",
+  "IQ3_XXS": "🎯 IQ3_XXS 更好",
+  "IQ3_S": "💎 IQ3_S 最好",
+};
+
+async function initBottomModelSwitcher() {
+  const btn = document.getElementById("bsai-model-btn");
+  const dropdown = document.getElementById("bsai-model-dropdown");
+  const list = document.getElementById("bsai-model-list");
+  const label = document.getElementById("bsai-current-model");
+  
+  if (!btn || !dropdown || !list) return;
+  
+  // Load current model
+  try {
+    const r = await fetch(`${MANAGER_URL}/api/current`);
+    const j = await r.json();
+    if (j.current) {
+      label.textContent = BS_MODELS[j.current] || j.current;
+    }
+  } catch (e) {
+    label.textContent = "管理服务未启动";
+  }
+  
+  // Populate model list
+  list.innerHTML = "";
+  Object.entries(BS_MODELS).forEach(([key, name]) => {
+    const item = document.createElement("div");
+    item.style.cssText = "padding: 8px 12px; cursor: pointer; font-size: 13px; hover: background: rgba(0,212,255,0.1);";
+    item.textContent = name;
+    item.addEventListener("mouseenter", () => item.style.background = "rgba(0,212,255,0.1)");
+    item.addEventListener("mouseleave", () => item.style.background = "transparent");
+    item.addEventListener("click", () => {
+      dropdown.style.display = "none";
+      switchModel(key);
+    });
+    list.appendChild(item);
+  });
+  
+  // Toggle dropdown
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    dropdown.style.display = dropdown.style.display === "none" ? "block" : "none";
+  });
+  
+  // Close when clicking outside
+  document.addEventListener("click", (e) => {
+    if (!dropdown.contains(e.target) && e.target !== btn) {
+      dropdown.style.display = "none";
+    }
+  });
+}
+
+// Init when DOM ready
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initBottomModelSwitcher);
+} else {
+  initBottomModelSwitcher();
+}

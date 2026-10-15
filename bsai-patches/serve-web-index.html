@@ -65,6 +65,24 @@
             <svg class="st-icon"><use href="web/sprite.svg#i-download"/></svg></button>
           <button type="button" class="st-btn st-btn--icon" id="sampling-btn" title="Sampling and thinking" aria-label="Sampling and thinking">
             <svg class="st-icon"><use href="web/sprite.svg#i-settings"/></svg></button>
+          <!-- BSAI Model Switcher -->
+          <div class="bsai-model-switcher" style="position: relative; display: inline-block;">
+            <button type="button" class="st-btn bsai-model-btn" id="bsai-model-btn" title="Switch model" style="display: flex; align-items: center; gap: 4px; font-size: 12px; padding: 6px 10px;">
+              <span id="bsai-current-model" style="color: #00d4ff;">加载中...</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div id="bsai-model-dropdown" class="bsai-model-dropdown" style="
+              position: absolute; bottom: 100%; left: 0; margin-bottom: 8px;
+              background: #1a1a2e; border: 1px solid #333; border-radius: 8px;
+              min-width: 180px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+              display: none; z-index: 100; overflow: hidden;
+            ">
+              <div style="padding: 8px 12px; font-size: 12px; color: #888; border-bottom: 1px solid #333;">切换模型</div>
+              <div id="bsai-model-list" style="padding: 4px 0;">
+                <!-- Model items will be inserted here -->
+              </div>
+            </div>
+          </div>
           <span class="spacer"></span>
           <span class="composer-hint" id="composer-hint"></span>
           <button type="button" class="st-btn st-btn--secondary" id="stop-btn" hidden>
