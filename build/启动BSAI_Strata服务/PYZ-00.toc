@@ -1,0 +1,449 @@
+('G:\\BSAI-ComfyUI-intel-XPU-GPU-NPU-aki\\ComfyUI\\custom_nodes\\BSAI-LLM-Strata\\build\\启动BSAI_Strata服务\\PYZ-00.pyz',
+ [('__future__',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\__future__.py',
+   'PYMODULE'),
+  ('_colorize',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\_colorize.py',
+   'PYMODULE'),
+  ('_compat_pickle',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\_compat_pickle.py',
+   'PYMODULE'),
+  ('_compression',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\_compression.py',
+   'PYMODULE'),
+  ('_opcode_metadata',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\_opcode_metadata.py',
+   'PYMODULE'),
+  ('_py_abc',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\_py_abc.py',
+   'PYMODULE'),
+  ('_pydatetime',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\_pydatetime.py',
+   'PYMODULE'),
+  ('_pydecimal',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\_pydecimal.py',
+   'PYMODULE'),
+  ('_strptime',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\_strptime.py',
+   'PYMODULE'),
+  ('_threading_local',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\_threading_local.py',
+   'PYMODULE'),
+  ('argparse',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\argparse.py',
+   'PYMODULE'),
+  ('ast',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\ast.py',
+   'PYMODULE'),
+  ('base64',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\base64.py',
+   'PYMODULE'),
+  ('bisect',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\bisect.py',
+   'PYMODULE'),
+  ('bz2',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\bz2.py',
+   'PYMODULE'),
+  ('calendar',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\calendar.py',
+   'PYMODULE'),
+  ('contextlib',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\contextlib.py',
+   'PYMODULE'),
+  ('contextvars',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\contextvars.py',
+   'PYMODULE'),
+  ('copy',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\copy.py',
+   'PYMODULE'),
+  ('csv',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\csv.py',
+   'PYMODULE'),
+  ('dataclasses',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\dataclasses.py',
+   'PYMODULE'),
+  ('datetime',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\datetime.py',
+   'PYMODULE'),
+  ('decimal',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\decimal.py',
+   'PYMODULE'),
+  ('dis',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\dis.py',
+   'PYMODULE'),
+  ('email',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\email\\__init__.py',
+   'PYMODULE'),
+  ('email._encoded_words',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\email\\_encoded_words.py',
+   'PYMODULE'),
+  ('email._header_value_parser',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\email\\_header_value_parser.py',
+   'PYMODULE'),
+  ('email._parseaddr',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\email\\_parseaddr.py',
+   'PYMODULE'),
+  ('email._policybase',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\email\\_policybase.py',
+   'PYMODULE'),
+  ('email.base64mime',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\email\\base64mime.py',
+   'PYMODULE'),
+  ('email.charset',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\email\\charset.py',
+   'PYMODULE'),
+  ('email.contentmanager',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\email\\contentmanager.py',
+   'PYMODULE'),
+  ('email.encoders',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\email\\encoders.py',
+   'PYMODULE'),
+  ('email.errors',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\email\\errors.py',
+   'PYMODULE'),
+  ('email.feedparser',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\email\\feedparser.py',
+   'PYMODULE'),
+  ('email.generator',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\email\\generator.py',
+   'PYMODULE'),
+  ('email.header',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\email\\header.py',
+   'PYMODULE'),
+  ('email.headerregistry',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\email\\headerregistry.py',
+   'PYMODULE'),
+  ('email.iterators',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\email\\iterators.py',
+   'PYMODULE'),
+  ('email.message',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\email\\message.py',
+   'PYMODULE'),
+  ('email.parser',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\email\\parser.py',
+   'PYMODULE'),
+  ('email.policy',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\email\\policy.py',
+   'PYMODULE'),
+  ('email.quoprimime',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\email\\quoprimime.py',
+   'PYMODULE'),
+  ('email.utils',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\email\\utils.py',
+   'PYMODULE'),
+  ('fnmatch',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\fnmatch.py',
+   'PYMODULE'),
+  ('fractions',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\fractions.py',
+   'PYMODULE'),
+  ('getopt',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\getopt.py',
+   'PYMODULE'),
+  ('gettext',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\gettext.py',
+   'PYMODULE'),
+  ('glob',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\glob.py',
+   'PYMODULE'),
+  ('gzip',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\gzip.py',
+   'PYMODULE'),
+  ('hashlib',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\hashlib.py',
+   'PYMODULE'),
+  ('importlib',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\importlib\\__init__.py',
+   'PYMODULE'),
+  ('importlib._abc',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\importlib\\_abc.py',
+   'PYMODULE'),
+  ('importlib._bootstrap',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\importlib\\_bootstrap.py',
+   'PYMODULE'),
+  ('importlib._bootstrap_external',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\importlib\\_bootstrap_external.py',
+   'PYMODULE'),
+  ('importlib.abc',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\importlib\\abc.py',
+   'PYMODULE'),
+  ('importlib.machinery',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\importlib\\machinery.py',
+   'PYMODULE'),
+  ('importlib.metadata',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\importlib\\metadata\\__init__.py',
+   'PYMODULE'),
+  ('importlib.metadata._adapters',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\importlib\\metadata\\_adapters.py',
+   'PYMODULE'),
+  ('importlib.metadata._collections',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\importlib\\metadata\\_collections.py',
+   'PYMODULE'),
+  ('importlib.metadata._functools',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\importlib\\metadata\\_functools.py',
+   'PYMODULE'),
+  ('importlib.metadata._itertools',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\importlib\\metadata\\_itertools.py',
+   'PYMODULE'),
+  ('importlib.metadata._meta',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\importlib\\metadata\\_meta.py',
+   'PYMODULE'),
+  ('importlib.metadata._text',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\importlib\\metadata\\_text.py',
+   'PYMODULE'),
+  ('importlib.readers',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\importlib\\readers.py',
+   'PYMODULE'),
+  ('importlib.resources',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\importlib\\resources\\__init__.py',
+   'PYMODULE'),
+  ('importlib.resources._adapters',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\importlib\\resources\\_adapters.py',
+   'PYMODULE'),
+  ('importlib.resources._common',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\importlib\\resources\\_common.py',
+   'PYMODULE'),
+  ('importlib.resources._functional',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\importlib\\resources\\_functional.py',
+   'PYMODULE'),
+  ('importlib.resources._itertools',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\importlib\\resources\\_itertools.py',
+   'PYMODULE'),
+  ('importlib.resources.abc',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\importlib\\resources\\abc.py',
+   'PYMODULE'),
+  ('importlib.resources.readers',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\importlib\\resources\\readers.py',
+   'PYMODULE'),
+  ('importlib.util',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\importlib\\util.py',
+   'PYMODULE'),
+  ('inspect',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\inspect.py',
+   'PYMODULE'),
+  ('ipaddress',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\ipaddress.py',
+   'PYMODULE'),
+  ('json',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\json\\__init__.py',
+   'PYMODULE'),
+  ('json.decoder',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\json\\decoder.py',
+   'PYMODULE'),
+  ('json.encoder',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\json\\encoder.py',
+   'PYMODULE'),
+  ('json.scanner',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\json\\scanner.py',
+   'PYMODULE'),
+  ('logging',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\logging\\__init__.py',
+   'PYMODULE'),
+  ('lzma',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\lzma.py',
+   'PYMODULE'),
+  ('numbers',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\numbers.py',
+   'PYMODULE'),
+  ('opcode',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\opcode.py',
+   'PYMODULE'),
+  ('pathlib',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\pathlib\\__init__.py',
+   'PYMODULE'),
+  ('pathlib._abc',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\pathlib\\_abc.py',
+   'PYMODULE'),
+  ('pathlib._local',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\pathlib\\_local.py',
+   'PYMODULE'),
+  ('pickle',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\pickle.py',
+   'PYMODULE'),
+  ('pprint',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\pprint.py',
+   'PYMODULE'),
+  ('py_compile',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\py_compile.py',
+   'PYMODULE'),
+  ('quopri',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\quopri.py',
+   'PYMODULE'),
+  ('random',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\random.py',
+   'PYMODULE'),
+  ('selectors',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\selectors.py',
+   'PYMODULE'),
+  ('shutil',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\shutil.py',
+   'PYMODULE'),
+  ('signal',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\signal.py',
+   'PYMODULE'),
+  ('socket',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\socket.py',
+   'PYMODULE'),
+  ('statistics',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\statistics.py',
+   'PYMODULE'),
+  ('string',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\string.py',
+   'PYMODULE'),
+  ('stringprep',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\stringprep.py',
+   'PYMODULE'),
+  ('subprocess',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\subprocess.py',
+   'PYMODULE'),
+  ('tarfile',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\tarfile.py',
+   'PYMODULE'),
+  ('tempfile',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\tempfile.py',
+   'PYMODULE'),
+  ('textwrap',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\textwrap.py',
+   'PYMODULE'),
+  ('threading',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\threading.py',
+   'PYMODULE'),
+  ('token',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\token.py',
+   'PYMODULE'),
+  ('tokenize',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\tokenize.py',
+   'PYMODULE'),
+  ('tracemalloc',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\tracemalloc.py',
+   'PYMODULE'),
+  ('typing',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\typing.py',
+   'PYMODULE'),
+  ('urllib',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\urllib\\__init__.py',
+   'PYMODULE'),
+  ('urllib.parse',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\urllib\\parse.py',
+   'PYMODULE'),
+  ('zipfile',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\zipfile\\__init__.py',
+   'PYMODULE'),
+  ('zipfile._path',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\zipfile\\_path\\__init__.py',
+   'PYMODULE'),
+  ('zipfile._path.glob',
+   'C:\\Users\\xm204\\AppData\\Local\\Doubao\\User '
+   'Data\\sandbox_runtime\\bases\\d0ace100fdff5b2d247847aca1e3d83b\\python\\Lib\\zipfile\\_path\\glob.py',
+   'PYMODULE')])
