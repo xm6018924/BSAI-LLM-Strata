@@ -350,6 +350,11 @@ class StrataManager:
             # Install requirements
             if os.path.exists(req_file):
                 print("[BSAI-LLM-Strata] 正在安装 Strata Python 依赖 …")
+                # First upgrade pip
+                subprocess.run(
+                    [venv_python, "-m", "pip", "install", "--upgrade", "pip"],
+                    capture_output=True, text=True, timeout=120,
+                )
                 r = subprocess.run(
                     [venv_python, "-m", "pip", "install", "-r", req_file],
                     capture_output=True, text=True, timeout=300,
