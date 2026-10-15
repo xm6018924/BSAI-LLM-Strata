@@ -175,18 +175,18 @@ def _auto_download_engine_async():
                                 f.write(js)
                             log.info("[BSAI-LLM-Strata] Patched app.js with video upload support.")
 
-                    # Create Strata launcher exe in ComfyUI root dir
+                    # Create Strata launcher bat in ComfyUI root dir
                     try:
                         import folder_paths
                         comfy_root = os.path.dirname(folder_paths.base_path) if hasattr(folder_paths, 'base_path') else os.path.dirname(os.path.dirname(install))
-                        exe_src = os.path.join(os.path.dirname(__file__), "web", "启动BSAI_Strata服务.exe")
-                        exe_dst = os.path.join(comfy_root, "启动BSAI_Strata服务.exe")
-                        if os.path.exists(exe_src) and not os.path.exists(exe_dst):
+                        bat_src = os.path.join(os.path.dirname(__file__), "web", "启动BSAI_Strata服务.bat")
+                        bat_dst = os.path.join(comfy_root, "启动BSAI_Strata服务.bat")
+                        if os.path.exists(bat_src) and not os.path.exists(bat_dst):
                             import shutil
-                            shutil.copy2(exe_src, exe_dst)
-                            log.info(f"[BSAI-LLM-Strata] Created Strata launcher: {exe_dst}")
+                            shutil.copy2(bat_src, bat_dst)
+                            log.info(f"[BSAI-LLM-Strata] Created Strata launcher: {bat_dst}")
                     except Exception as e:
-                        log.debug(f"[BSAI-LLM-Strata] Launcher exe creation skipped: {e}")
+                        log.debug(f"[BSAI-LLM-Strata] Launcher bat creation skipped: {e}")
 
                 except Exception as e:
                     log.debug(f"[BSAI-LLM-Strata] Web UI patch skipped: {e}")
