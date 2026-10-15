@@ -105,6 +105,68 @@ If you installed via Manager or ZIP (no `--recursive`), the plugin automatically
 
 ---
 
+### Step 2.5: First-run auto-setup (venv + dependencies + engine binary) / 首次启动自动安装
+
+**English**: After the source code is in place, the plugin runs a **3-step background setup** on first ComfyUI startup — no manual `SETUP.bat` needed. Everything happens automatically:
+
+| Step | What happens / 做什么 | Typical time / 耗时 |
+|---|---|---|
+| 1 | **Create `.venv` virtual environment** using system Python (Python 3.10+ required) / 用系统 Python 创建虚拟环境 | ~10 seconds |
+| 2 | **Install Python dependencies** (numpy, jinja2, cmake, ninja, etc.) via pip / 用 pip 安装 Python 依赖 | ~30 seconds |
+| 3 | **Download engine binary + prepare model data** by running `setup.py --yes --no-start` / 运行 setup.py 下载引擎二进制并准备模型数据 | ~5–15 minutes |
+
+**Total first-time setup: ~6–16 minutes** (depends on your internet speed). ComfyUI starts normally in the foreground while this runs in the background.
+
+**What you'll see in the console / 你会在控制台看到：**
+```
+[BSAI-LLM-Strata] Strata engine found: .../Strata
+[BSAI-LLM-Strata] 首次使用，正在自动创建 Strata 虚拟环境 (.venv) …
+[BSAI-LLM-Strata] 使用系统 Python: C:\...\Python312\python.exe
+[BSAI-LLM-Strata] 正在安装 Strata Python 依赖 …
+Successfully installed numpy-2.5.3 jinja2-3.1.6 ...
+[BSAI-LLM-Strata] Strata 虚拟环境创建完成。
+[BSAI-LLM-Strata] 首次使用，正在自动下载 Strata 引擎二进制并准备模型数据 …
+[BSAI-LLM-Strata] 这可能需要几分钟到十几分钟，请耐心等待 …
+```
+
+**How to know it's done / 怎么知道安装好了：**
+- Console shows `[BSAI-LLM-Strata] Strata engine fully installed. Ready to use.`
+- Or check the `Strata/` folder — you'll see `run-*.bat` files appear (e.g. `run-iq3_s.bat`)
+
+> **Note**: The plugin needs a **system Python 3.10+** installed (not just ComfyUI's embedded Python). If you don't have one, it will print a warning — install Python 3.12 from [python.org](https://www.python.org/downloads/) and restart ComfyUI.
+
+---
+
+**中文**: 源代码就位后，插件会在首次启动 ComfyUI 时**后台自动完成 3 步安装**——无需手动运行 `SETUP.bat`。一切自动进行：
+
+| 步骤 | 做什么 | 预计耗时 |
+|---|---|---|
+| 1 | 用系统 Python（需 Python 3.10+）创建 `.venv` 虚拟环境 | ~10 秒 |
+| 2 | 用 pip 安装 Python 依赖（numpy、jinja2、cmake、ninja 等） | ~30 秒 |
+| 3 | 运行 `setup.py --yes --no-start` 下载引擎二进制并准备模型数据 | ~5–15 分钟 |
+
+**首次安装总耗时：约 6–16 分钟**（取决于网速）。ComfyUI 正常前台启动，安装在后台进行。
+
+**控制台输出示例：**
+```
+[BSAI-LLM-Strata] Strata engine found: .../Strata
+[BSAI-LLM-Strata] 首次使用，正在自动创建 Strata 虚拟环境 (.venv) …
+[BSAI-LLM-Strata] 使用系统 Python: C:\...\Python312\python.exe
+[BSAI-LLM-Strata] 正在安装 Strata Python 依赖 …
+Successfully installed numpy-2.5.3 jinja2-3.1.6 ...
+[BSAI-LLM-Strata] Strata 虚拟环境创建完成。
+[BSAI-LLM-Strata] 首次使用，正在自动下载 Strata 引擎二进制并准备模型数据 …
+[BSAI-LLM-Strata] 这可能需要几分钟到十几分钟，请耐心等待 …
+```
+
+**怎么确认安装完成：**
+- 控制台出现 `[BSAI-LLM-Strata] Strata engine fully installed. Ready to use.`
+- 或者查看 `Strata/` 目录——里面会出现 `run-*.bat` 文件（如 `run-iq3_s.bat`）
+
+> **注意**: 插件需要系统安装了 **Python 3.10+**（不能只有 ComfyUI 的嵌入式 Python）。如果没装，插件会打印警告——从 [python.org](https://www.python.org/downloads/) 安装 Python 3.12 后重启 ComfyUI 即可。
+
+---
+
 ### Step 3: Download model files / 下载模型文件
 
 **One unified folder.** Download all model files from the network drive (百度网盘 / 阿里云盘 / 夸克网盘 — link provided in the release page), then extract into:
