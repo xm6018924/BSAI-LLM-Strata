@@ -959,7 +959,42 @@ function addFiles(files) {
       });
       continue;
     }
-    if (!isTextFile(f)) { toast("warn", "Not a text file", `${f.name}: attach text files (code, notes, logs, data)${health.images ? ", pictures" : ""}, or videos.`); continue; }
+    // Audio files: extract waveform visualization in browser
+    if (f.type.startsWith("audio/") || /\.(mp3|wav|flac|m4a|ogg|aac|wma)$/i.test(f.name)) {
+      if (f.size > 100e6) { toast("warn", "Audio too large", `${f.name} is over 100 MB.`); continue; }
+      toast("info", "Processing audio", `Analyzing ${f.name}...`);
+      extractAudioVisualization(f).then(result => {
+        // Add audio info text
+        attachments.push({kind: "file", name: f.name, text: `[Audio: ${f.name}, duration: ${result.duration?.toFixed(1) || "?"}s, sampleRate: ${result.sampleRate || "?"}Hz, channels: ${result.channels || "?"}]`});
+        // Add waveform image
+        if (result.waveformData) {
+          attachments.push({kind: "image", name: `${f.name} waveform`, url: result.waveformData});
+        }
+        renderAttachments();
+        // Auto-fill audio reverse prompt template
+        const reversePrompt = `请根据这个音频文件的信息和波形图，帮我反推出这个音频的详细描述。
+
+请按照以下格式输出：
+1. **音频类型**：这是什么类型的音频？音乐/歌曲/旁白/音效/环境音/播客？
+2. **时长与节奏**：音频时长？节奏快还是慢？节拍感强不强？
+3. **音色特征**：音色是明亮还是低沉？温暖还是冰冷？饱满还是单薄？
+4. **乐器/声源**：主要有哪些乐器或声源？是人声还是纯音乐？
+5. **情绪氛围**：整体情绪是怎样的？欢快/悲伤/紧张/平静/激昂？
+6. **音乐风格**：如果是音乐，是什么风格？流行/古典/摇滚/电子/民谣？
+7. **完整描述**：把以上所有内容整合成一段详细的音频描述，可以直接用于音频生成模型的提示词。`;
+        $("input").value = reversePrompt;
+        autosize();
+        $("input").focus();
+        toast("ok", "Audio ready", `Processed ${f.name}. Reverse prompt template filled in the input box.`);
+      }).catch(err => {
+        console.error("Audio processing failed:", err);
+        attachments.push({kind: "file", name: f.name, text: `[Audio file: ${f.name}, size: ${(f.size / 1024 / 1024).toFixed(1)} MB]`});
+        renderAttachments();
+        toast("warn", "Audio processing failed", `Could not process ${f.name}`);
+      });
+      continue;
+    }
+    if (!isTextFile(f)) { toast("warn", "Not a text file", `${f.name}: attach text files (code, notes, logs, data)${health.images ? ", pictures" : ""}, videos or audio.`); continue; }
     if (f.size > MAX_TEXT_FILE) { toast("warn", "File too large", `${f.name} is over 512 KB.`); continue; }
     const r = new FileReader();
     r.onload = () => {
@@ -1029,6 +1064,79 @@ function extractVideoFrames(file) {
     };
   });
 }
+
+// Extract audio waveform visualization in browser using Web Audio API
+function extractAudioVisualization(file) {
+  return new Promise((resolve, reject) => {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    
+    file.arrayBuffer().then(arrayBuffer => {
+      audioContext.decodeAudioData(arrayBuffer).then(audioBuffer => {
+        const duration = audioBuffer.duration;
+        const sampleRate = audioBuffer.sampleRate;
+        const channels = audioBuffer.numberOfChannels;
+        
+        // Get channel data
+        const channelData = audioBuffer.getChannelData(0);
+        
+        // Create canvas for waveform
+        const canvas = document.createElement('canvas');
+        const maxWidth = 1024;
+        const height = 300;
+        canvas.width = maxWidth;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        
+        // Draw background
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw waveform
+        ctx.beginPath();
+        ctx.strokeStyle = '#00d4ff';
+        ctx.lineWidth = 2;
+        
+        const sliceWidth = canvas.width / channelData.length;
+        let x = 0;
+        
+        for (let i = 0; i < channelData.length; i++) {
+          const v = channelData[i];
+          const y = (v * 0.5 + 0.5) * height;
+          
+          if (i === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+          
+          x += sliceWidth;
+        }
+        
+        ctx.stroke();
+        
+        // Add text info
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '16px Arial';
+        ctx.fillText(`Duration: ${duration.toFixed(1)}s | Sample Rate: ${sampleRate}Hz | Channels: ${channels}`, 10, 30);
+        
+        const dataUrl = canvas.toDataURL('image/png', 0.9);
+        
+        resolve({
+          waveformData: dataUrl,
+          duration: duration,
+          sampleRate: sampleRate,
+          channels: channels
+        });
+      }).catch(err => {
+        reject(new Error('Failed to decode audio: ' + err.message));
+      });
+    }).catch(err => {
+      reject(new Error('Failed to read file: ' + err.message));
+    });
+  });
+}
+
 // a file's text in the message, fenced with more backticks than it contains itself
 function fileBlock(f) {
   const longest = Math.max(2, ...(f.text.match(/`+/g) || []).map((s) => s.length));
