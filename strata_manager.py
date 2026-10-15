@@ -240,6 +240,8 @@ class StrataManager:
         target = os.path.join(_PLUGIN_DIR, "Strata")
         # Already there?
         if os.path.isdir(target) and os.path.exists(os.path.join(target, "setup.py")):
+            # Apply BSAI custom patches (video analysis, UI improvements, etc.)
+            cls.apply_bsai_patches(target)
             return target
         # Clone it - try GitHub first, then mirrors
         mirrors = [
@@ -258,6 +260,8 @@ class StrataManager:
                     check=True, timeout=300,
                 )
                 print("[BSAI-LLM-Strata] Strata 引擎下载完成。")
+                # Apply BSAI custom patches after fresh clone
+                cls.apply_bsai_patches(target)
                 return target
             except Exception as e:
                 print(f"[BSAI-LLM-Strata] 下载失败: {e}")
@@ -268,6 +272,32 @@ class StrataManager:
                 continue
         print("[BSAI-LLM-Strata] 所有下载源都失败了，请检查网络连接。")
         return None
+
+    @staticmethod
+    def apply_bsai_patches(strata_dir):
+        """Apply BSAI custom patches to Strata submodule (video analysis, UI improvements, etc.)"""
+        patches_dir = os.path.join(_PLUGIN_DIR, "bsai-patches")
+        if not os.path.isdir(patches_dir):
+            return
+        # Patch file mapping: (source_patch_file, target_relative_path)
+        patches = [
+            ("serve-web-app.js", os.path.join("serve", "web", "app.js")),
+            ("serve-server.py", os.path.join("serve", "server.py")),
+        ]
+        applied = 0
+        for patch_name, target_rel in patches:
+            patch_path = os.path.join(patches_dir, patch_name)
+            target_path = os.path.join(strata_dir, target_rel)
+            if not os.path.exists(patch_path):
+                continue
+            try:
+                os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                shutil.copy2(patch_path, target_path)
+                applied += 1
+            except Exception as e:
+                print(f"[BSAI-LLM-Strata] 应用补丁 {patch_name} 失败: {e}")
+        if applied > 0:
+            print(f"[BSAI-LLM-Strata] 已应用 {applied} 个 BSAI 自定义补丁。")
 
     @staticmethod
     def _find_system_python():
