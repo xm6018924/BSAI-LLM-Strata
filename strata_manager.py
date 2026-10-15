@@ -507,8 +507,6 @@ class StrataManager:
                         bat_content = f'''@echo off
 title BSAI Strata {best_quant}
 cd /d "{install}"
-REM Auto-open browser after 30 seconds (wait for engine to load)
-start /b cmd /c "timeout /t 30 /nobreak >nul && start http://127.0.0.1:8080/"
 "{venv_python}" "bsai_model_manager.py" "{best_quant}"
 if errorlevel 1 pause
 '''
