@@ -696,6 +696,13 @@ if errorlevel 1 pause
             h = cls.health(timeout=2.0)
             if h.get("ok"):
                 print(f"[BSAI-LLM-Strata] 后端已就绪: {h.get('models')}")
+                # Auto-open Web UI in browser
+                try:
+                    import webbrowser
+                    webbrowser.open("http://127.0.0.1:8080/")
+                    print("[BSAI-LLM-Strata] 已自动打开 Web UI: http://127.0.0.1:8080/")
+                except Exception as e:
+                    print(f"[BSAI-LLM-Strata] 自动打开浏览器失败: {e}")
                 return True, "started_and_ready"
             last_err = h.get("error", "?")
         return False, f"等待超时({wait_timeout:.0f}s): {last_err}"
