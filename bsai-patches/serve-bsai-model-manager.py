@@ -112,13 +112,14 @@ class ManagerHandler(http.server.BaseHTTPRequestHandler):
   <title>BSAI Strata - Loading</title>
   <style>
     body { background: #1a1a2e; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: Arial, sans-serif; }
-    .spinner { font-size: 64px; margin-bottom: 20px; }
+    .logo { width: 96px; height: 96px; margin-bottom: 20px; border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
     .title { font-size: 24px; margin-bottom: 10px; }
     .sub { font-size: 16px; color: #888; }
   </style>
 </head>
 <body>
-  <div class="spinner">🔄</div>
+  <img src="/logo.png" class="logo" alt="BSAI Logo">
   <div class="title">BSAI Strata 正在加载...</div>
   <div class="sub">首次启动需要 1-2 分钟，请耐心等待，页面会自动跳转</div>
   <script>
@@ -135,6 +136,20 @@ class ManagerHandler(http.server.BaseHTTPRequestHandler):
 </body>
 </html>'''
             self.send_html(html)
+        elif self.path == "/logo.png":
+            # Serve BSAI logo
+            logo_path = INSTALL_DIR / "serve" / "web" / "bsai-logo.png"
+            if not logo_path.exists():
+                logo_path = INSTALL_DIR / "bsai-patches" / "serve-web-bsai-logo.png"
+            if logo_path.exists():
+                self.send_response(200)
+                self.send_header("Content-Type", "image/png")
+                self.end_headers()
+                with open(logo_path, "rb") as f:
+                    self.wfile.write(f.read())
+            else:
+                self.send_response(404)
+                self.end_headers()
         elif self.path == "/api/models":
             self.send_json({
                 "current": current_model,
