@@ -241,20 +241,33 @@ class StrataManager:
         # Already there?
         if os.path.isdir(target) and os.path.exists(os.path.join(target, "setup.py")):
             return target
-        # Clone it
-        try:
-            os.makedirs(target, exist_ok=True)
-            print(f"[BSAI-LLM-Strata] 首次使用，正在自动下载 Strata 引擎到 {target} …")
-            subprocess.run(
-                ["git", "clone", "--depth", "1",
-                 "https://github.com/Niko1221/Strata.git", target],
-                check=True, timeout=300,
-            )
-            print("[BSAI-LLM-Strata] Strata 引擎下载完成。")
-            return target
-        except Exception as e:
-            print(f"[BSAI-LLM-Strata] 自动下载 Strata 失败: {e}")
-            return None
+        # Clone it - try GitHub first, then mirrors
+        mirrors = [
+            "https://github.com/Niko1221/Strata.git",
+            "https://ghproxy.com/https://github.com/Niko1221/Strata.git",
+            "https://mirror.ghproxy.com/https://github.com/Niko1221/Strata.git",
+            "https://gh-proxy.com/https://github.com/Niko1221/Strata.git",
+        ]
+        for url in mirrors:
+            try:
+                os.makedirs(target, exist_ok=True)
+                print(f"[BSAI-LLM-Strata] 首次使用，正在自动下载 Strata 引擎 …")
+                print(f"[BSAI-LLM-Strata] 尝试源: {url}")
+                subprocess.run(
+                    ["git", "clone", "--depth", "1", url, target],
+                    check=True, timeout=300,
+                )
+                print("[BSAI-LLM-Strata] Strata 引擎下载完成。")
+                return target
+            except Exception as e:
+                print(f"[BSAI-LLM-Strata] 下载失败: {e}")
+                # Clean up failed clone
+                import shutil
+                if os.path.isdir(target):
+                    shutil.rmtree(target, ignore_errors=True)
+                continue
+        print("[BSAI-LLM-Strata] 所有下载源都失败了，请检查网络连接。")
+        return None
 
     @staticmethod
     def _find_system_python():
