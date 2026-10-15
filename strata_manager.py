@@ -439,19 +439,20 @@ class StrataManager:
             best_dir = None
             print("[BSAI-LLM-Strata] 未检测到已有模型，setup.py 将自动下载默认模型 …")
         # Install NVIDIA CUDA libraries first (avoid setup.py's pinned version not found on PyPI)
-        print("[BSAI-LLM-Strata] 安装 NVIDIA CUDA 库 (cuBLAS, CUDA runtime) …")
+        # Use Tsinghua mirror directly for faster download in China
+        print("[BSAI-LLM-Strata] 安装 NVIDIA CUDA 库 (cuBLAS, CUDA runtime, ~0.4 GB) …")
         r_cuda = subprocess.run(
             [venv_python, "-m", "pip", "install", "--quiet", "--disable-pip-version-check",
+             "-i", "https://pypi.tuna.tsinghua.edu.cn/simple",
              "nvidia-cublas", "nvidia-cuda-runtime"],
-            capture_output=True, text=True, timeout=300,
+            capture_output=True, text=True, timeout=600,
         )
         if r_cuda.returncode != 0:
-            print(f"[BSAI-LLM-Strata] CUDA 库默认源安装失败，尝试清华镜像源 …")
+            print(f"[BSAI-LLM-Strata] 清华镜像源安装失败，尝试默认 PyPI 源 …")
             r_cuda2 = subprocess.run(
                 [venv_python, "-m", "pip", "install", "--quiet", "--disable-pip-version-check",
-                 "-i", "https://pypi.tuna.tsinghua.edu.cn/simple",
                  "nvidia-cublas", "nvidia-cuda-runtime"],
-                capture_output=True, text=True, timeout=300,
+                capture_output=True, text=True, timeout=600,
             )
             if r_cuda2.returncode != 0:
                 print(f"[BSAI-LLM-Strata] 警告: CUDA 库安装失败，setup.py 可能会报错:")
