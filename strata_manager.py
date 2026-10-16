@@ -427,8 +427,8 @@ class StrataManager:
                 if not any(q == quant for q, _ in found):
                     found.append((quant, d))
                 break  # one file per dir is enough to confirm
-        # Sort by speed: Q2_0 fastest, IQ3_S slowest
-        order = {"Q2_0": 0, "IQ2_XS": 1, "IQ3_XXS": 2, "IQ3_S": 3, "Q4_XS": 4}
+        # Sort by quality: IQ3_S highest quality first, Q2_0 fastest last
+        order = {"IQ3_S": 0, "IQ3_XXS": 1, "IQ2_XS": 2, "Q2_0": 3, "Q4_XS": 4}
         found.sort(key=lambda x: order.get(x[0], 99))
         return found
 
