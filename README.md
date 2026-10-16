@@ -21,7 +21,13 @@
 - **OpenAI-compatible endpoint** at `http://127.0.0.1:8080/v1` — any ComfyUI node that speaks OpenAI API can point here directly.
 - **Auto-start on demand** — any BSAI node that selects Strata as its backend will probe health first; if Strata isn't running, it automatically launches `run-<quant>.bat` and waits (up to 4 minutes) for the 125B model to load before sending the first request.
 - **Auto-generated config paths** — no more hardcoded `G:\...` paths. On startup, the plugin scans your actual model directory, finds the GGUF files, mmproj, packs, and MTP tensors, and regenerates `strata-<quant>.json` with correct absolute paths for your machine.
-- **Video analysis support** — upload video files directly in the Strata Web UI; the backend automatically extracts keyframes and the model can analyze video content.
+- **One-click model switching in Web UI** — switch between Q2_0 / IQ2_XS / IQ3_XXS / IQ3_S directly from the bottom dropdown menu or About page card, no restart needed. Fullscreen loading overlay, no "connection refused" errors.
+- **Multimodal reverse prompting**:
+  - **Image reverse prompting**: upload images, get detailed descriptions
+  - **Video reverse prompting**: upload videos, auto-extract keyframes, analyze content
+  - **Audio reverse prompting**: upload audio files, generate waveform visualization, get detailed audio/music descriptions
+- **65536 token context window** — large enough for long system prompts from third-party clients like WorkBuddy. Auto-fits max_tokens to available space.
+- **Smart startup waiting page** — when launching, shows a loading page with BSAI logo, auto-redirects to the chat UI when the engine is ready.
 - **3 built-in ComfyUI nodes**:
   - `BSAI LLM Call` — plain chat completion
   - `BSAI LLM Vision Describe` — image → text (via mmproj vision projector)
@@ -315,7 +321,21 @@ This plugin is the **central LLM backend** for the entire BSAI ComfyUI plugin su
 
 ## API Contract / API 契约
 
-All BSAI nodes call this endpoint. You can also call it from any OpenAI-compatible client (ChatBox, NextChat, etc.):
+All BSAI nodes call this endpoint. You can also call it from any OpenAI-compatible client (ChatBox, NextChat, WorkBuddy, etc.):
+
+### OpenAI format / OpenAI 格式
+```
+Base URL: http://127.0.0.1:8080/v1
+```
+
+### Anthropic format / Anthropic 格式
+```
+Base URL: http://127.0.0.1:8080
+```
+
+---
+
+### Example request / 请求示例：
 
 ```
 POST http://127.0.0.1:8080/v1/chat/completions
@@ -334,6 +354,8 @@ Content-Type: application/json
 ```
 
 Model name: `qwen3.8-flash-next-q2_0`. API key can be anything (we use `strata` by default).
+
+> **Note / 注意**: The context window is 65536 tokens by default. `fit_max_tokens: true` is enabled, so the server will automatically adjust output length to fit within the context window.
 
 ---
 
@@ -392,6 +414,22 @@ This plugin code is MIT. The bundled [Strata](https://github.com/Niko1221/Strata
 ---
 
 ## Changelog
+
+### v3.0.0 (2026-10-16) — Web UI Model Switcher + Multimodal + API Improvements
+- **English**: Major web UI upgrade.
+  - **One-click model switching**: bottom dropdown menu + About page card, switch between Q2_0 / IQ2_XS / IQ3_XXS / IQ3_S directly in the browser, no manual restart.
+  - **Fullscreen loading overlay** when switching models — no more "connection refused" browser error pages.
+  - **Audio reverse prompting**: upload MP3/WAV/FLAC/M4A files, generate waveform visualization, get detailed audio/music descriptions.
+  - **65536 token context window** (up from 32768), `fit_max_tokens: true` auto-adjusts output length for third-party clients.
+  - **Smart startup waiting page** with BSAI logo, auto-redirects when engine is ready.
+  - **Dual API format support**: both OpenAI and Anthropic compatible endpoints for WorkBuddy and other clients.
+- **中文**: 网页版重大升级。
+  - **一键切换模型**：底部下拉菜单 + About 页面卡片，直接在浏览器切换 Q2_0 / IQ2_XS / IQ3_XXS / IQ3_S，不用手动重启。
+  - **全屏加载遮罩**：切换模型时盖住整个页面，不再显示浏览器原生的"无法访问此页面"错误。
+  - **音频反推功能**：上传 MP3/WAV/FLAC/M4A 文件，自动生成波形图，获得详细的音频/音乐描述。
+  - **65536 token 上下文窗口**（原来 32768），`fit_max_tokens: true` 自动调整输出长度，适配 WorkBuddy 等第三方客户端。
+  - **智能启动等待页**：带百声 AI LOGO 的加载页，引擎就绪后自动跳转到聊天界面。
+  - **双格式 API 支持**：同时兼容 OpenAI 和 Anthropic 格式，适配 WorkBuddy 等客户端。
 
 ### v2.0.0 (2026-10-15) — All-in-one model package + Zero-config install
 - **English**: Complete redesign of the installation flow.
