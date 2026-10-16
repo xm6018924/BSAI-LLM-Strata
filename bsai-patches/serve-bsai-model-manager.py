@@ -84,7 +84,7 @@ def start_strata(model_name):
         print(f"[BSAI Manager] Model {model_name} is now active!")
 
 
-def wait_for_engine(timeout=180):
+def wait_for_engine(timeout=600):
     """Wait for Strata engine to be ready"""
     import urllib.request
     start_time = time.time()

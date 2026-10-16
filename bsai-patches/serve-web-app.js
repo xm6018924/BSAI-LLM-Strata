@@ -1368,7 +1368,7 @@ async function switchModel(model) {
   overlay.innerHTML = `
     <div style="font-size: 48px;">🔄</div>
     <div>正在切换到 ${model} 模型...</div>
-    <div style="font-size: 16px; color: #888;">引擎重启中，请稍候，页面会自动恢复</div>
+    <div class="wait-text" style="font-size: 16px; color: #888;">模型加载中，请耐心等待...</div>
   `;
   document.body.appendChild(overlay);
   
@@ -1398,12 +1398,16 @@ async function switchModel(model) {
       } catch (e) {
         // Still waiting
       }
-      if (tries > 90) {
+      // Update waiting text with elapsed time
+      const elapsed = Math.floor(tries * 2 / 60) + "分" + (tries * 2 % 60) + "秒";
+      overlay.querySelector(".wait-text") && (overlay.querySelector(".wait-text").textContent = `已等待 ${elapsed}，模型加载中...`);
+      
+      if (tries > 300) { // 10 minutes timeout
         clearInterval(checkReady);
         overlay.innerHTML = `
           <div style="font-size: 48px;">⚠️</div>
-          <div>切换超时</div>
-          <div style="font-size: 16px; color: #888;">请手动刷新页面</div>
+          <div>切换超时（超过10分钟）</div>
+          <div style="font-size: 16px; color: #888;">请查看引擎窗口是否有报错</div>
         `;
       }
     }, 2000);
