@@ -251,7 +251,7 @@ def main():
         print(f"[BSAI Manager] Port check skipped: {e}")
     
     # Get initial model from command line
-    initial_model = sys.argv[1] if len(sys.argv) > 1 else "IQ3_XXS"
+    initial_model = sys.argv[1] if len(sys.argv) > 1 else "IQ3_S"
     
     print(f"[BSAI Manager] Starting with model: {initial_model}")
     print(f"[BSAI Manager] Waiting page: http://127.0.0.1:{MANAGER_PORT}/")
