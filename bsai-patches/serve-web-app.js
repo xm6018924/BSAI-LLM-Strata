@@ -1695,4 +1695,58 @@ function initBsaiSidebar() {
       }
     });
   });
+
+  // ===== Template cards: click to fill input =====
+  const templates = {
+    "code": "你是一个专业的编程专家。请帮我写代码、调试bug、优化性能。请用清晰的代码块输出，代码后面附上简短说明。",
+    "copy": "你是一个专业的文案写作专家。请帮我写公众号文章、产品文案、短视频脚本。要求文字生动、有感染力、符合中文表达习惯。",
+    "image-reverse": "你是一个AI绘画提示词专家。我会上传图片，请你帮我反推出详细的、适合AI绘画的提示词，包含画面主体、风格、光线、构图、色彩等细节。",
+    "game": "你是一个游戏开发专家。请帮我写一个简单的网页小游戏（HTML+JS+CSS），要求可以直接运行，有游戏结束和分数记录功能。"
+  };
+  
+  document.querySelectorAll(".template-card").forEach(card => {
+    card.addEventListener("click", () => {
+      const tpl = card.dataset.template;
+      const text = templates[tpl];
+      if (!text) return;
+      
+      // Fill chat input
+      const chatInput = document.getElementById("input");
+      if (chatInput) {
+        chatInput.value = text;
+        chatInput.focus();
+      }
+      
+      // Switch back to chat page
+      const chatItem = document.querySelector('.bsai-menu-item[data-page="chat"]');
+      if (chatItem) chatItem.click();
+    });
+  });
+
+  // ===== Assistant cards: click to set role =====
+  const assistants = {
+    "coder": "现在请你扮演一个专业的全栈代码专家。你精通Python、JavaScript、HTML/CSS，擅长写代码、调试bug、架构设计、性能优化。请用中文回答，代码用```包裹。",
+    "writer": "现在请你扮演一个专业的文案写作专家。你擅长写公众号文章、产品文案、短视频脚本、营销话术。文字要生动、有感染力，符合中文阅读习惯。",
+    "artist": "现在请你扮演一个AI绘画提示词专家。你擅长根据图片反推提示词，精通各种绘画风格（二次元、写实、电影感、产品图等）。请给出详细的、可直接用于AI绘画的提示词。",
+    "analyst": "现在请你扮演一个数据分析专家。你擅长数据清洗、统计分析、Excel公式、图表设计。请用清晰的步骤解释你的分析过程。"
+  };
+  
+  document.querySelectorAll(".assistant-card").forEach(card => {
+    card.addEventListener("click", () => {
+      const asst = card.dataset.assistant;
+      const text = assistants[asst];
+      if (!text) return;
+      
+      // Fill chat input
+      const chatInput = document.getElementById("input");
+      if (chatInput) {
+        chatInput.value = text + "\n\n请确认你已经理解这个角色设定，然后等待我的问题。";
+        chatInput.focus();
+      }
+      
+      // Switch back to chat page
+      const chatItem = document.querySelector('.bsai-menu-item[data-page="chat"]');
+      if (chatItem) chatItem.click();
+    });
+  });
 }
