@@ -74,11 +74,14 @@ def start_strata(model_name):
             cwd=str(INSTALL_DIR),
             creationflags=subprocess.CREATE_NEW_CONSOLE
         )
-        current_model = model_name
         print(f"[BSAI Manager] Started Strata with model: {model_name}")
         
         # Wait for engine to be ready
         wait_for_engine()
+        
+        # Only set current_model after engine is fully ready
+        current_model = model_name
+        print(f"[BSAI Manager] Model {model_name} is now active!")
 
 
 def wait_for_engine(timeout=180):
