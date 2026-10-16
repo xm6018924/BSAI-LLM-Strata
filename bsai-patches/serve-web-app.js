@@ -1381,36 +1381,11 @@ async function switchModel(model) {
     const j = await r.json();
     if (j.error) throw new Error(j.error);
     
-    // Poll for engine ready
-    let tries = 0;
-    const checkReady = setInterval(async () => {
-      tries++;
-      try {
-        const r = await fetch(`${MANAGER_URL}/api/current`);
-        const j = await r.json();
-        if (j.current === model && tries > 5) {
-          clearInterval(checkReady);
-          // Wait a bit more for engine to fully load
-          setTimeout(() => {
-            location.reload();
-          }, 2000);
-        }
-      } catch (e) {
-        // Still waiting
-      }
-      // Update waiting text with elapsed time
-      const elapsed = Math.floor(tries * 2 / 60) + "分" + (tries * 2 % 60) + "秒";
-      overlay.querySelector(".wait-text") && (overlay.querySelector(".wait-text").textContent = `已等待 ${elapsed}，模型加载中...`);
-      
-      if (tries > 300) { // 10 minutes timeout
-        clearInterval(checkReady);
-        overlay.innerHTML = `
-          <div style="font-size: 48px;">⚠️</div>
-          <div>切换超时（超过10分钟）</div>
-          <div style="font-size: 16px; color: #888;">请查看引擎窗口是否有报错</div>
-        `;
-      }
-    }, 2000);
+    // Immediately redirect to waiting page on 8081 (never goes down!)
+    setTimeout(() => {
+      window.location.href = "http://127.0.0.1:8081/wait";
+    }, 500);
+    
   } catch (e) {
     overlay.innerHTML = `
       <div style="font-size: 48px;">❌</div>
