@@ -1409,6 +1409,42 @@ const BS_MODELS = {
   "IQ3_S": "💎 IQ3_S 最好",
 };
 
+// Global: load current running model from manager service
+async function loadCurrentModel() {
+  for (let i = 0; i < 30; i++) {
+    try {
+      const r = await fetch(`${MANAGER_URL}/api/current`);
+      const j = await r.json();
+      if (j.current) {
+        // Update bottom label
+        const bottomLabel = document.getElementById("bsai-current-model");
+        if (bottomLabel) bottomLabel.textContent = BS_MODELS[j.current] || j.current;
+        // Update sidebar label
+        const sidebarLabel = document.getElementById("bsai-sidebar-model");
+        if (sidebarLabel) sidebarLabel.textContent = BS_MODELS[j.current] || j.current;
+        // Highlight all quick buttons
+        document.querySelectorAll(".bsai-quick-model").forEach(b => {
+          if (b.dataset.model === j.current) {
+            b.style.background = "rgba(0,212,255,0.15)";
+            b.style.borderColor = "rgba(0,212,255,0.3)";
+            b.style.color = "#00d4ff";
+          } else {
+            b.style.background = "rgba(255,255,255,0.06)";
+            b.style.borderColor = "rgba(255,255,255,0.1)";
+            b.style.color = "#ccc";
+          }
+        });
+        return j.current;
+      }
+    } catch (e) {}
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+  // Failed after retries
+  const sidebarLabel = document.getElementById("bsai-sidebar-model");
+  if (sidebarLabel) sidebarLabel.textContent = "管理服务未启动";
+  return null;
+}
+
 async function initBottomModelSwitcher() {
   const btn = document.getElementById("bsai-model-btn");
   const dropdown = document.getElementById("bsai-model-dropdown");
@@ -1417,24 +1453,11 @@ async function initBottomModelSwitcher() {
   
   if (!btn || !dropdown || !list) return;
   
-  // Load current model (with retry in case engine is still loading)
-  async function loadCurrentModelWithRetry() {
-    for (let i = 0; i < 20; i++) { // retry up to 20 times = 60 seconds
-      try {
-        const r = await fetch(`${MANAGER_URL}/api/current`);
-        const j = await r.json();
-        if (j.current) {
-          label.textContent = BS_MODELS[j.current] || j.current;
-          return;
-        }
-      } catch (e) {
-        // still waiting
-      }
-      await new Promise(resolve => setTimeout(resolve, 3000));
+  // Start loading current model
+  loadCurrentModel();
     }
     label.textContent = "管理服务未启动";
   }
-  loadCurrentModelWithRetry();
   
   // Populate model list
   list.innerHTML = "";
@@ -1498,45 +1521,10 @@ async function initBottomModelSwitcher() {
         sidebarDropdown.style.display = "none";
       }
     });
-
-    // Load current model for sidebar
-    async function loadSidebarModel() {
-      for (let i = 0; i < 20; i++) {
-        try {
-          const r = await fetch(`${MANAGER_URL}/api/current`);
-          const j = await r.json();
-          if (j.current) {
-            if (sidebarLabel) sidebarLabel.textContent = BS_MODELS[j.current] || j.current;
-            return j.current;
-          }
-        } catch (e) {}
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-      if (sidebarLabel) sidebarLabel.textContent = "管理服务未启动";
-      return null;
-    }
   }
 
   // ===== Sidebar quick model buttons =====
   const quickBtns = document.querySelectorAll(".bsai-quick-model");
-  
-  // Highlight correct button after loading current model
-  async function syncModelHighlight() {
-    const current = await loadSidebarModel();
-    if (!current) return;
-    quickBtns.forEach(b => {
-      if (b.dataset.model === current) {
-        b.style.background = "rgba(0,212,255,0.15)";
-        b.style.borderColor = "rgba(0,212,255,0.3)";
-        b.style.color = "#00d4ff";
-      } else {
-        b.style.background = "rgba(255,255,255,0.06)";
-        b.style.borderColor = "rgba(255,255,255,0.1)";
-        b.style.color = "#ccc";
-      }
-    });
-  }
-  syncModelHighlight();
   
   quickBtns.forEach(btn => {
     btn.addEventListener("click", () => {
