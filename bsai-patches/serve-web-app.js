@@ -1488,6 +1488,59 @@ async function initBottomModelSwitcher() {
       dropdown.style.display = "none";
     }
   });
+
+  // ===== Sidebar model switcher =====
+  const sidebarBtn = document.getElementById("bsai-sidebar-model-btn");
+  const sidebarDropdown = document.getElementById("bsai-sidebar-model-dropdown");
+  const sidebarList = document.getElementById("bsai-sidebar-model-list");
+  const sidebarLabel = document.getElementById("bsai-sidebar-model");
+  
+  if (sidebarBtn && sidebarDropdown && sidebarList) {
+    // Populate model list
+    sidebarList.innerHTML = "";
+    Object.entries(BS_MODELS).forEach(([key, name]) => {
+      const item = document.createElement("div");
+      item.style.cssText = "padding: 8px 12px; cursor: pointer; font-size: 13px; color: #ccc;";
+      item.textContent = name;
+      item.addEventListener("mouseenter", () => item.style.background = "rgba(0,212,255,0.1)");
+      item.addEventListener("mouseleave", () => item.style.background = "transparent");
+      item.addEventListener("click", () => {
+        sidebarDropdown.style.display = "none";
+        switchModel(key);
+      });
+      sidebarList.appendChild(item);
+    });
+    
+    // Toggle dropdown
+    sidebarBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      sidebarDropdown.style.display = sidebarDropdown.style.display === "none" ? "block" : "none";
+    });
+    
+    // Close when clicking outside
+    document.addEventListener("click", (e) => {
+      if (!sidebarDropdown.contains(e.target) && e.target !== sidebarBtn) {
+        sidebarDropdown.style.display = "none";
+      }
+    });
+
+    // Load current model for sidebar
+    async function loadSidebarModel() {
+      for (let i = 0; i < 20; i++) {
+        try {
+          const r = await fetch(`${MANAGER_URL}/api/current`);
+          const j = await r.json();
+          if (j.current && sidebarLabel) {
+            sidebarLabel.textContent = BS_MODELS[j.current] || j.current;
+            return;
+          }
+        } catch (e) {}
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+      if (sidebarLabel) sidebarLabel.textContent = "管理服务未启动";
+    }
+    loadSidebarModel();
+  }
 }
 
 // Init when DOM ready
@@ -1569,73 +1622,6 @@ function initBsaiSidebar() {
       }
     });
   });
-  
-  // Update sidebar model name when loaded
-  async function updateSidebarModel() {
-    const sidebarEl = document.getElementById("bsai-sidebar-model");
-    if (!sidebarEl) return;
-    
-    for (let i = 0; i < 20; i++) {
-      try {
-        const r = await fetch(`${MANAGER_URL}/api/current`);
-        const j = await r.json();
-        if (j.current) {
-          const names = {
-            Q2_0: "🚀 Q2_0 (最快)",
-            IQ2_XS: "⚖️ IQ2_XS (平衡)",
-            IQ3_XXS: "🎯 IQ3_XXS (更好)",
-            IQ3_S: "💎 IQ3_S (最好)"
-          };
-          sidebarEl.textContent = names[j.current] || j.current;
-          return;
-        }
-      } catch (e) {}
-      await new Promise(resolve => setTimeout(resolve, 3000));
-    }
-    sidebarEl.textContent = "管理服务未启动";
-  }
-  updateSidebarModel();
-
-  // Sidebar model switcher dropdown
-  const sidebarModelBtn = document.getElementById("bsai-sidebar-model-btn");
-  const sidebarModelDropdown = document.getElementById("bsai-sidebar-model-dropdown");
-  const sidebarModelList = document.getElementById("bsai-sidebar-model-list");
-  
-  if (sidebarModelBtn && sidebarModelDropdown && sidebarModelList) {
-    // Populate model list
-    const bsModels = {
-      Q2_0: "🚀 Q2_0 (最快)",
-      IQ2_XS: "⚖️ IQ2_XS (平衡)",
-      IQ3_XXS: "🎯 IQ3_XXS (更好)",
-      IQ3_S: "💎 IQ3_S (最好)"
-    };
-    
-    Object.entries(bsModels).forEach(([key, name]) => {
-      const item = document.createElement("div");
-      item.style.cssText = "padding: 8px 12px; cursor: pointer; font-size: 13px; color: #ccc;";
-      item.textContent = name;
-      item.addEventListener("mouseenter", () => item.style.background = "rgba(0,212,255,0.1)");
-      item.addEventListener("mouseleave", () => item.style.background = "transparent");
-      item.addEventListener("click", () => {
-        sidebarModelDropdown.style.display = "none";
-        switchModel(key); // 复用底部的切换逻辑
-      });
-      sidebarModelList.appendChild(item);
-    });
-    
-    // Toggle dropdown
-    sidebarModelBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      sidebarModelDropdown.style.display = sidebarModelDropdown.style.display === "none" ? "block" : "none";
-    });
-    
-    // Close when clicking outside
-    document.addEventListener("click", (e) => {
-      if (!sidebarModelDropdown.contains(e.target) && e.target !== sidebarModelBtn) {
-        sidebarModelDropdown.style.display = "none";
-      }
-    });
-  }
 }
 
 // Init when DOM ready
