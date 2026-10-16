@@ -1531,6 +1531,9 @@ function initBsaiSidebar() {
         chatView.style.display = "";
         workView.style.display = "none";
         header.style.display = ""; // 保留顶部导航栏
+        // 清空当前聊天，开始新对话
+        const newBtn = document.getElementById("new-btn");
+        if (newBtn) newBtn.click();
       } else if (page === "work") {
         chatView.style.display = "none";
         workView.style.display = "";
