@@ -1696,14 +1696,3 @@ function initBsaiSidebar() {
     });
   });
 }
-
-// Init when DOM ready
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", () => {
-    initBottomModelSwitcher();
-    initBsaiSidebar();
-  });
-} else {
-  initBottomModelSwitcher();
-  initBsaiSidebar();
-}
