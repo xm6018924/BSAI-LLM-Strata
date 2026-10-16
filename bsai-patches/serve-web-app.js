@@ -1496,3 +1496,79 @@ if (document.readyState === "loading") {
 } else {
   initBottomModelSwitcher();
 }
+
+// ===== BSAI Sidebar Logic =====
+(function() {
+  const menuItems = document.querySelectorAll(".bsai-menu-item");
+  
+  menuItems.forEach(item => {
+    item.addEventListener("click", () => {
+      // Remove active from all
+      menuItems.forEach(i => {
+        i.classList.remove("active");
+        i.style.background = "transparent";
+        i.style.color = "#ccc";
+      });
+      // Add active to current
+      item.classList.add("active");
+      item.style.background = "rgba(0, 212, 255, 0.15)";
+      item.style.color = "#00d4ff";
+      
+      const page = item.dataset.page;
+      console.log("Switch to page:", page);
+      
+      // For now, only chat page does anything
+      if (page !== "chat") {
+        alert("📌 功能开发中，敬请期待！\n\n当前已实现：新建对话（聊天问答）\n即将上线：工作任务、插件市场、专家库、模板库等");
+        // Switch back to chat
+        menuItems.forEach(i => {
+          i.classList.remove("active");
+          i.style.background = "transparent";
+          i.style.color = "#ccc";
+        });
+        const chatItem = document.querySelector('.bsai-menu-item[data-page="chat"]');
+        chatItem.classList.add("active");
+        chatItem.style.background = "rgba(0, 212, 255, 0.15)";
+        chatItem.style.color = "#00d4ff";
+      }
+    });
+    
+    // Hover effect
+    item.addEventListener("mouseenter", () => {
+      if (!item.classList.contains("active")) {
+        item.style.background = "rgba(255,255,255,0.05)";
+      }
+    });
+    item.addEventListener("mouseleave", () => {
+      if (!item.classList.contains("active")) {
+        item.style.background = "transparent";
+      }
+    });
+  });
+  
+  // Update sidebar model name when loaded
+  async function updateSidebarModel() {
+    const sidebarEl = document.getElementById("bsai-sidebar-model");
+    if (!sidebarEl) return;
+    
+    for (let i = 0; i < 20; i++) {
+      try {
+        const r = await fetch(`${MANAGER_URL}/api/current`);
+        const j = await r.json();
+        if (j.current) {
+          const names = {
+            Q2_0: "🚀 Q2_0 (最快)",
+            IQ2_XS: "⚖️ IQ2_XS (平衡)",
+            IQ3_XXS: "🎯 IQ3_XXS (更好)",
+            IQ3_S: "💎 IQ3_S (最好)"
+          };
+          sidebarEl.textContent = names[j.current] || j.current;
+          return;
+        }
+      } catch (e) {}
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    }
+    sidebarEl.textContent = "管理服务未启动";
+  }
+  updateSidebarModel();
+})();

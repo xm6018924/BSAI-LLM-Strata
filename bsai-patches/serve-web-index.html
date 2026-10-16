@@ -18,6 +18,125 @@
 </script>
 </head>
 <body>
+<!-- BSAI Left Sidebar -->
+<aside class="bsai-sidebar" style="
+  width: 240px;
+  background: #1a1a2e;
+  border-right: 1px solid #2d2d44;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 100;
+  overflow-y: auto;
+">
+  <!-- Logo -->
+  <div style="padding: 20px 16px; border-bottom: 1px solid #2d2d44; display: flex; align-items: center; gap: 10px;">
+    <img src="web/bsai-logo.png" alt="BSAI" style="width: 36px; height: 36px; border-radius: 50%;">
+    <div>
+      <div style="color: white; font-weight: 600; font-size: 15px;">百声AI Strata</div>
+      <div style="color: #888; font-size: 11px;">本地大模型工作站</div>
+    </div>
+  </div>
+
+  <!-- Menu Items -->
+  <nav style="padding: 12px 8px; flex: 1;">
+    <!-- New Chat -->
+    <div class="bsai-menu-item active" data-page="chat" style="
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+      border-radius: 8px; cursor: pointer; margin-bottom: 4px;
+      background: rgba(0, 212, 255, 0.15); color: #00d4ff; font-size: 14px;
+    ">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 5v14M5 12h14"/>
+      </svg>
+      <span>新建对话</span>
+    </div>
+
+    <!-- New Work Task -->
+    <div class="bsai-menu-item" data-page="work" style="
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+      border-radius: 8px; cursor: pointer; margin-bottom: 4px;
+      color: #ccc; font-size: 14px;
+    ">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/>
+      </svg>
+      <span>新建工作</span>
+    </div>
+
+    <!-- Plugin Market -->
+    <div class="bsai-menu-item" data-page="plugins" style="
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+      border-radius: 8px; cursor: pointer; margin-bottom: 4px;
+      color: #ccc; font-size: 14px;
+    ">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+      </svg>
+      <span>插件市场</span>
+    </div>
+
+    <!-- My Assistant -->
+    <div class="bsai-menu-item" data-page="assistant" style="
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+      border-radius: 8px; cursor: pointer; margin-bottom: 4px;
+      color: #ccc; font-size: 14px;
+    ">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+      </svg>
+      <span>我的助理</span>
+    </div>
+
+    <!-- Automation -->
+    <div class="bsai-menu-item" data-page="automation" style="
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+      border-radius: 8px; cursor: pointer; margin-bottom: 4px;
+      color: #ccc; font-size: 14px;
+    ">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+      </svg>
+      <span>自动化</span>
+    </div>
+
+    <!-- Template Library -->
+    <div class="bsai-menu-item" data-page="templates" style="
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+      border-radius: 8px; cursor: pointer; margin-bottom: 4px;
+      color: #ccc; font-size: 14px;
+    ">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>
+      </svg>
+      <span>模板库</span>
+    </div>
+
+    <!-- My Outputs -->
+    <div class="bsai-menu-item" data-page="outputs" style="
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+      border-radius: 8px; cursor: margin-bottom: 4px;
+      color: #ccc; font-size: 14px;
+    ">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+      </svg>
+      <span>我的产物</span>
+    </div>
+  </nav>
+
+  <!-- Bottom: Current Model -->
+  <div style="padding: 12px 16px; border-top: 1px solid #2d2d44;">
+    <div style="color: #888; font-size: 11px; margin-bottom: 4px;">当前模型</div>
+    <div id="bsai-sidebar-model" style="color: #00d4ff; font-size: 13px; font-weight: 500;">加载中...</div>
+  </div>
+</aside>
+
+<!-- Main Content Wrapper -->
+<div style="margin-left: 240px; min-height: 100vh; display: flex; flex-direction: column;">
 <header class="st-header">
   <span class="st-header__brand" style="display:flex;align-items:center;gap:8px;">
     <img src="web/bsai-logo.png?v=2" alt="BSAI" style="width:32px;height:32px;border-radius:50%;vertical-align:middle;">
@@ -306,6 +425,7 @@
 </aside>
 <div class="scrim" id="scrim" hidden></div>
 <div class="st-toasts" id="toasts" aria-live="polite"></div>
+</div><!-- End of main content wrapper -->
 <script src="web/app.js"></script>
 </body>
 </html>
