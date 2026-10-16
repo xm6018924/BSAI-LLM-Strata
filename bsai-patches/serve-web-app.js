@@ -1525,7 +1525,7 @@ if (document.readyState === "loading") {
       if (page === "chat") {
         chatView.style.display = "";
         workView.style.display = "none";
-        header.style.display = "";
+        header.style.display = "none"; // 隐藏顶部栏，侧边栏已有品牌
       } else if (page === "work") {
         chatView.style.display = "none";
         workView.style.display = "";
