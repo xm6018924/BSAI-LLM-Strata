@@ -1594,8 +1594,25 @@ async function initBottomModelSwitcher() {
         // Add AI reply
         const aiMsg = document.createElement("div");
         aiMsg.style.cssText = "margin-bottom: 16px;";
-        aiMsg.innerHTML = `<div style="display: inline-block; background: rgba(255,255,255,0.08); color: white; padding: 12px 16px; border-radius: 12px; max-width: 90%; font-size: 14px; white-space: pre-wrap;">${reply}</div>`;
+        aiMsg.innerHTML = `
+          <div style="display: inline-block; background: rgba(255,255,255,0.08); color: white; padding: 12px 16px; border-radius: 12px; max-width: 90%; font-size: 14px; white-space: pre-wrap;">${reply}</div>
+          <div style="margin-top: 8px;">
+            <button class="copy-btn" style="
+              background: rgba(255,255,255,0.1); border: none; border-radius: 6px;
+              padding: 6px 12px; color: #ccc; font-size: 12px; cursor: pointer;
+            ">📋 复制内容</button>
+          </div>
+        `;
         workChatMessages.appendChild(aiMsg);
+        
+        // Copy button functionality
+        const copyBtn = aiMsg.querySelector(".copy-btn");
+        copyBtn.addEventListener("click", () => {
+          navigator.clipboard.writeText(reply).then(() => {
+            copyBtn.textContent = "✅ 已复制！";
+            setTimeout(() => { copyBtn.textContent = "📋 复制内容"; }, 2000);
+          });
+        });
         
       } catch (e) {
         loadingMsg.remove();
