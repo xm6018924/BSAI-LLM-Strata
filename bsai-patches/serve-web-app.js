@@ -1455,9 +1455,6 @@ async function initBottomModelSwitcher() {
   
   // Start loading current model
   loadCurrentModel();
-    }
-    label.textContent = "管理服务未启动";
-  }
   
   // Populate model list
   list.innerHTML = "";
