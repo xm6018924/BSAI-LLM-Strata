@@ -1505,8 +1505,22 @@ async function initBottomModelSwitcher() {
         try {
           const r = await fetch(`${MANAGER_URL}/api/current`);
           const j = await r.json();
-          if (j.current && sidebarLabel) {
-            sidebarLabel.textContent = BS_MODELS[j.current] || j.current;
+          if (j.current) {
+            if (sidebarLabel) sidebarLabel.textContent = BS_MODELS[j.current] || j.current;
+            
+            // Highlight quick buttons
+            const quickBtns = document.querySelectorAll(".bsai-quick-model");
+            quickBtns.forEach(b => {
+              if (b.dataset.model === j.current) {
+                b.style.background = "rgba(0,212,255,0.15)";
+                b.style.borderColor = "rgba(0,212,255,0.3)";
+                b.style.color = "#00d4ff";
+              } else {
+                b.style.background = "rgba(255,255,255,0.06)";
+                b.style.borderColor = "rgba(255,255,255,0.1)";
+                b.style.color = "#ccc";
+              }
+            });
             return;
           }
         } catch (e) {}
