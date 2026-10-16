@@ -1507,32 +1507,37 @@ async function initBottomModelSwitcher() {
           const j = await r.json();
           if (j.current) {
             if (sidebarLabel) sidebarLabel.textContent = BS_MODELS[j.current] || j.current;
-            
-            // Highlight quick buttons
-            const quickBtns = document.querySelectorAll(".bsai-quick-model");
-            quickBtns.forEach(b => {
-              if (b.dataset.model === j.current) {
-                b.style.background = "rgba(0,212,255,0.15)";
-                b.style.borderColor = "rgba(0,212,255,0.3)";
-                b.style.color = "#00d4ff";
-              } else {
-                b.style.background = "rgba(255,255,255,0.06)";
-                b.style.borderColor = "rgba(255,255,255,0.1)";
-                b.style.color = "#ccc";
-              }
-            });
-            return;
+            return j.current;
           }
         } catch (e) {}
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
       if (sidebarLabel) sidebarLabel.textContent = "管理服务未启动";
+      return null;
     }
-    loadSidebarModel();
   }
 
   // ===== Sidebar quick model buttons =====
   const quickBtns = document.querySelectorAll(".bsai-quick-model");
+  
+  // Highlight correct button after loading current model
+  async function syncModelHighlight() {
+    const current = await loadSidebarModel();
+    if (!current) return;
+    quickBtns.forEach(b => {
+      if (b.dataset.model === current) {
+        b.style.background = "rgba(0,212,255,0.15)";
+        b.style.borderColor = "rgba(0,212,255,0.3)";
+        b.style.color = "#00d4ff";
+      } else {
+        b.style.background = "rgba(255,255,255,0.06)";
+        b.style.borderColor = "rgba(255,255,255,0.1)";
+        b.style.color = "#ccc";
+      }
+    });
+  }
+  syncModelHighlight();
+  
   quickBtns.forEach(btn => {
     btn.addEventListener("click", () => {
       const model = btn.dataset.model;
