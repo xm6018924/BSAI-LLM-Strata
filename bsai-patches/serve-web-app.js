@@ -1517,9 +1517,22 @@ if (document.readyState === "loading") {
       const page = item.dataset.page;
       console.log("Switch to page:", page);
       
-      // For now, only chat page does anything
-      if (page !== "chat") {
-        alert("📌 功能开发中，敬请期待！\n\n当前已实现：新建对话（聊天问答）\n即将上线：工作任务、插件市场、专家库、模板库等");
+      // Switch views
+      const chatView = document.getElementById("view-chat");
+      const workView = document.getElementById("view-work");
+      const header = document.querySelector(".st-header");
+      
+      if (page === "chat") {
+        chatView.style.display = "";
+        workView.style.display = "none";
+        header.style.display = "";
+      } else if (page === "work") {
+        chatView.style.display = "none";
+        workView.style.display = "";
+        header.style.display = "none"; // Hide top header on work page
+      } else {
+        // Other pages - show alert then go back to chat
+        alert("📌 功能开发中，敬请期待！\n\n当前已实现：\n✅ 新建对话（聊天问答）\n✅ 新建工作（写代码、做软件、开发游戏）\n\n即将上线：插件市场、专家库、模板库等");
         // Switch back to chat
         menuItems.forEach(i => {
           i.classList.remove("active");
@@ -1530,6 +1543,9 @@ if (document.readyState === "loading") {
         chatItem.classList.add("active");
         chatItem.style.background = "rgba(0, 212, 255, 0.15)";
         chatItem.style.color = "#00d4ff";
+        chatView.style.display = "";
+        workView.style.display = "none";
+        header.style.display = "";
       }
     });
     

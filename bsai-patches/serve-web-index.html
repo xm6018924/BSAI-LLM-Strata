@@ -36,8 +36,8 @@
   <div style="padding: 20px 16px; border-bottom: 1px solid #2d2d44; display: flex; align-items: center; gap: 10px;">
     <img src="web/bsai-logo.png" alt="BSAI" style="width: 36px; height: 36px; border-radius: 50%;">
     <div>
-      <div style="color: white; font-weight: 600; font-size: 15px;">百声AI Strata</div>
-      <div style="color: #888; font-size: 11px;">本地大模型工作站</div>
+      <div style="color: white; font-weight: 600; font-size: 15px;">BSAI 工作平台</div>
+      <div style="color: #888; font-size: 11px;">本地AI · 写代码 · 做软件 · 创作</div>
     </div>
   </div>
 
@@ -210,6 +210,73 @@
             <svg class="st-icon"><use href="web/sprite.svg#i-send"/></svg></button>
         </div>
       </form>
+    </div>
+  </section>
+
+  <!-- ============================ New Work / 新工作 ============================ -->
+  <section class="view view--work" id="view-work" role="tabpanel" aria-labelledby="tab-btn-work" style="display:none; height: calc(100vh - 64px); overflow-y: auto;">
+    <div style="max-width: 900px; margin: 0 auto; padding: 40px 20px;">
+      <!-- Header -->
+      <div style="margin-bottom: 32px;">
+        <h2 style="font-size: 24px; margin-bottom: 8px;">💼 新工作任务</h2>
+        <p style="color: #888; font-size: 14px;">让AI帮你写代码、做软件、开发游戏、创建工具——真正的人机协作！</p>
+      </div>
+
+      <!-- Task Input -->
+      <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+        <div style="font-size: 14px; color: #ccc; margin-bottom: 12px;">📝 描述你想做什么：</div>
+        <textarea id="work-input" rows="4" placeholder="例如：帮我写一个贪吃蛇小游戏，用Python写，要有分数记录和游戏结束提示..." style="
+          width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 8px; padding: 12px; color: white; font-size: 14px; resize: vertical;
+          font-family: inherit;
+        "></textarea>
+        
+        <!-- Working Directory -->
+        <div style="margin-top: 16px;">
+          <div style="font-size: 13px; color: #888; margin-bottom: 8px;">📁 工作目录（AI可以读写这个文件夹）：</div>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="work-dir" value="G:\\BSAI-Workspace" style="
+              flex: 1; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);
+              border-radius: 6px; padding: 8px 12px; color: white; font-size: 13px;
+            ">
+            <button class="st-btn st-btn--secondary" style="font-size: 13px;">浏览</button>
+          </div>
+        </div>
+
+        <div style="margin-top: 20px; display: flex; gap: 12px; align-items: center;">
+          <button class="st-btn st-btn--primary" id="work-start-btn" style="font-size: 14px; padding: 10px 24px;">
+            🚀 开始工作
+          </button>
+          <span style="font-size: 12px; color: #888;">支持：写代码 · 做软件 · 开发游戏 · 处理文件 · 自动整理</span>
+        </div>
+      </div>
+
+      <!-- Task Features -->
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px;">
+        <div style="background: rgba(255,255,255,0.03); border-radius: 10px; padding: 16px; border: 1px solid rgba(255,255,255,0.08);">
+          <div style="font-size: 24px; margin-bottom: 8px;">💻</div>
+          <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">写代码程序</div>
+          <div style="font-size: 12px; color: #888;">Python、JS、HTML、游戏脚本、小工具</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.03); border-radius: 10px; padding: 16px; border: 1px solid rgba(255,255,255,0.08);">
+          <div style="font-size: 24px; margin-bottom: 8px;">📂</div>
+          <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">读写本地文件</div>
+          <div style="font-size: 12px; color: #888;">自动整理文件夹、批量处理、生成文档</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.03); border-radius: 10px; padding: 16px; border: 1px solid rgba(255,255,255,0.08);">
+          <div style="font-size: 24px; margin-bottom: 8px;">🎮</div>
+          <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">做小游戏</div>
+          <div style="font-size: 12px; color: #888;">贪吃蛇、俄罗斯方块、网页小游戏</div>
+        </div>
+      </div>
+
+      <!-- Recent Tasks (Placeholder) -->
+      <div>
+        <div style="font-size: 16px; font-weight: 600; margin-bottom: 16px;">📋 最近任务</div>
+        <div style="text-align: center; padding: 40px; color: #666; font-size: 14px;">
+          暂无任务，创建第一个工作任务吧！
+        </div>
+      </div>
     </div>
   </section>
 
