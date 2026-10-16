@@ -186,6 +186,32 @@ class ManagerHandler(http.server.BaseHTTPRequestHandler):
                 self.send_json({"status": "switching", "model": model})
             except Exception as e:
                 self.send_json({"error": str(e)}, 500)
+        elif self.path == "/api/exec":
+            # Execute shell command in specified working directory
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_length)
+            data = json.loads(body)
+            command = data.get("command", "")
+            cwd = data.get("cwd", None)
+            if not command:
+                self.send_json({"error": "No command provided"}, 400)
+                return
+            try:
+                result = subprocess.run(
+                    command,
+                    shell=True,
+                    cwd=cwd,
+                    capture_output=True,
+                    text=True,
+                    timeout=120
+                )
+                self.send_json({
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                    "returncode": result.returncode
+                })
+            except Exception as e:
+                self.send_json({"error": str(e)}, 500)
         else:
             self.send_json({"error": "Not found"}, 404)
     

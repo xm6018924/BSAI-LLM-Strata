@@ -1579,15 +1579,74 @@ async function initBottomModelSwitcher() {
       });
       picker.addEventListener("change", (e) => {
         if (e.target.files.length > 0) {
-          // Get folder name from first file's relative path
           const firstFile = e.target.files[0];
           const relPath = firstFile.webkitRelativePath;
           const folderName = relPath.split("/")[0];
           if (folderName) {
-            // Auto suggest a path
             document.getElementById("work-dir").value = "G:\\BSAI-Workspace\\" + folderName;
           }
         }
+      });
+    }
+    
+    // Execute command button
+    const execBtn = document.getElementById("work-exec-btn");
+    const execInput = document.getElementById("work-exec-input");
+    if (execBtn && execInput && workChatMessages) {
+      execBtn.addEventListener("click", async () => {
+        const cmd = execInput.value.trim();
+        if (!cmd) {
+          alert("请输入要执行的命令！");
+          return;
+        }
+        const cwd = document.getElementById("work-dir").value;
+        
+        // Add command to chat
+        const cmdMsg = document.createElement("div");
+        cmdMsg.style.cssText = "margin-bottom: 16px;";
+        cmdMsg.innerHTML = `<div style="background: rgba(0,0,0,0.3); border-left: 3px solid #00d4ff; padding: 10px 14px; border-radius: 0 8px 8px 0; font-family: monospace; font-size: 13px; color: #00d4ff;">$ ${cmd}</div>`;
+        workChatMessages.appendChild(cmdMsg);
+        
+        execBtn.disabled = true;
+        execBtn.textContent = "⏳ 执行中...";
+        
+        try {
+          const r = await fetch(`${MANAGER_URL}/api/exec`, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({command: cmd, cwd: cwd})
+          });
+          const result = await r.json();
+          
+          // Show output
+          let outputHtml = "";
+          if (result.stdout) {
+            outputHtml += `<div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px; margin-bottom: 8px; font-family: monospace; font-size: 12px; color: #ccc; white-space: pre-wrap;">${result.stdout}</div>`;
+          }
+          if (result.stderr) {
+            outputHtml += `<div style="background: rgba(255,107,107,0.1); padding: 10px; border-radius: 6px; margin-bottom: 8px; font-family: monospace; font-size: 12px; color: #ff6b6b; white-space: pre-wrap;">${result.stderr}</div>`;
+          }
+          if (!result.stdout && !result.stderr) {
+            outputHtml = `<div style="font-size: 12px; color: #888;">（命令执行完成，无输出）</div>`;
+          }
+          
+          const outMsg = document.createElement("div");
+          outMsg.style.cssText = "margin-bottom: 16px; margin-left: 20px;";
+          outMsg.innerHTML = outputHtml;
+          workChatMessages.appendChild(outMsg);
+          
+          execInput.value = "";
+        } catch (e) {
+          const errMsg = document.createElement("div");
+          errMsg.style.cssText = "margin-bottom: 16px; margin-left: 20px; color: #ff6b6b; font-size: 13px;";
+          errMsg.textContent = "❌ 执行失败：" + e.message;
+          workChatMessages.appendChild(errMsg);
+        }
+        
+        execBtn.disabled = false;
+        execBtn.textContent = "▶️ 执行";
+        const workChat = document.getElementById("work-chat");
+        workChat.scrollTop = workChat.scrollHeight;
       });
     }
     
