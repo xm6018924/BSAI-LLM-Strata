@@ -1423,7 +1423,6 @@ document.querySelectorAll(".model-item").forEach(el => {
 loadCurrentModel();
 
 // ========== BSAI Bottom Model Switcher ==========
-const MANAGER_URL = "http://127.0.0.1:8081";
 const BS_MODELS = {
   "Q2_0": "🚀 Q2_0 最快",
   "IQ2_XS": "⚖️ IQ2_XS 平衡",
