@@ -1646,7 +1646,16 @@ async function initBottomModelSwitcher() {
           })
         });
         const j = await r.json();
-        const reply = j.choices[0].message.content;
+        
+        // Check for errors
+        let reply;
+        if (j.choices && j.choices[0] && j.choices[0].message) {
+          reply = j.choices[0].message.content;
+        } else if (j.error) {
+          reply = "❌ API错误：" + (j.error.message || j.error);
+        } else {
+          reply = "❌ 服务器返回异常：" + JSON.stringify(j);
+        }
         
         // Remove loading
         loadingMsg.remove();
