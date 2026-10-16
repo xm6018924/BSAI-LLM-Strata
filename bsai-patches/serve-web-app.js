@@ -1595,6 +1595,47 @@ function initBsaiSidebar() {
     sidebarEl.textContent = "管理服务未启动";
   }
   updateSidebarModel();
+
+  // Sidebar model switcher dropdown
+  const sidebarModelBtn = document.getElementById("bsai-sidebar-model-btn");
+  const sidebarModelDropdown = document.getElementById("bsai-sidebar-model-dropdown");
+  const sidebarModelList = document.getElementById("bsai-sidebar-model-list");
+  
+  if (sidebarModelBtn && sidebarModelDropdown && sidebarModelList) {
+    // Populate model list
+    const bsModels = {
+      Q2_0: "🚀 Q2_0 (最快)",
+      IQ2_XS: "⚖️ IQ2_XS (平衡)",
+      IQ3_XXS: "🎯 IQ3_XXS (更好)",
+      IQ3_S: "💎 IQ3_S (最好)"
+    };
+    
+    Object.entries(bsModels).forEach(([key, name]) => {
+      const item = document.createElement("div");
+      item.style.cssText = "padding: 8px 12px; cursor: pointer; font-size: 13px; color: #ccc;";
+      item.textContent = name;
+      item.addEventListener("mouseenter", () => item.style.background = "rgba(0,212,255,0.1)");
+      item.addEventListener("mouseleave", () => item.style.background = "transparent");
+      item.addEventListener("click", () => {
+        sidebarModelDropdown.style.display = "none";
+        switchModel(key); // 复用底部的切换逻辑
+      });
+      sidebarModelList.appendChild(item);
+    });
+    
+    // Toggle dropdown
+    sidebarModelBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      sidebarModelDropdown.style.display = sidebarModelDropdown.style.display === "none" ? "block" : "none";
+    });
+    
+    // Close when clicking outside
+    document.addEventListener("click", (e) => {
+      if (!sidebarModelDropdown.contains(e.target) && e.target !== sidebarModelBtn) {
+        sidebarModelDropdown.style.display = "none";
+      }
+    });
+  }
 }
 
 // Init when DOM ready
