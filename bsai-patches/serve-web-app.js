@@ -1547,6 +1547,27 @@ async function initBottomModelSwitcher() {
   const workChatMessages = document.getElementById("work-chat-messages");
   
   if (workStartBtn && workInput && workChatMessages) {
+    // Pick folder button
+    const pickBtn = document.getElementById("work-dir-pick-btn");
+    const picker = document.getElementById("work-dir-picker");
+    if (pickBtn && picker) {
+      pickBtn.addEventListener("click", () => {
+        picker.click();
+      });
+      picker.addEventListener("change", (e) => {
+        if (e.target.files.length > 0) {
+          // Get folder name from first file's relative path
+          const firstFile = e.target.files[0];
+          const relPath = firstFile.webkitRelativePath;
+          const folderName = relPath.split("/")[0];
+          if (folderName) {
+            // Auto suggest a path
+            document.getElementById("work-dir").value = "G:\\BSAI-Workspace\\" + folderName;
+          }
+        }
+      });
+    }
+    
     // Copy work directory path button
     const copyBtn = document.getElementById("work-dir-copy-btn");
     if (copyBtn) {
@@ -1554,7 +1575,7 @@ async function initBottomModelSwitcher() {
         const dir = document.getElementById("work-dir").value;
         navigator.clipboard.writeText(dir).then(() => {
           copyBtn.textContent = "✅ 已复制！";
-          setTimeout(() => { copyBtn.textContent = "📋 复制路径"; }, 2000);
+          setTimeout(() => { copyBtn.textContent = "📋 复制"; }, 2000);
         });
       });
     }

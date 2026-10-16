@@ -263,9 +263,11 @@
               flex: 1; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);
               border-radius: 6px; padding: 8px 12px; color: white; font-size: 13px;
             ">
-            <button class="st-btn st-btn--secondary" style="font-size: 13px;" id="work-dir-copy-btn">📋 复制路径</button>
+            <input type="file" id="work-dir-picker" webkitdirectory directory multiple style="display:none;">
+            <button class="st-btn st-btn--secondary" style="font-size: 13px;" id="work-dir-pick-btn">📂 选择文件夹</button>
+            <button class="st-btn st-btn--secondary" style="font-size: 13px;" id="work-dir-copy-btn">📋 复制</button>
           </div>
-          <div style="font-size: 11px; color: #666; margin-top: 6px;">💡 直接修改上面的路径，改成你想让AI工作的文件夹位置就行！</div>
+          <div style="font-size: 11px; color: #666; margin-top: 6px;">💡 点"选择文件夹"直接选本地文件夹，或手动修改上面的路径！</div>
         </div>
 
         <div style="margin-top: 20px; display: flex; gap: 12px; align-items: center;">
