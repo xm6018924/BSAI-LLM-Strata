@@ -285,6 +285,7 @@ class StrataManager:
             ("serve-web-index.html", os.path.join("serve", "web", "index.html")),
             ("serve-web-bsai-logo.png", os.path.join("serve", "web", "bsai-logo.png")),
             ("serve-server.py", os.path.join("serve", "server.py")),
+            ("serve-bsai-model-manager.py", "bsai_model_manager.py"),
         ]
         applied = 0
         for patch_name, target_rel in patches:
