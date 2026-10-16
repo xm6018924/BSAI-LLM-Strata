@@ -1547,6 +1547,18 @@ async function initBottomModelSwitcher() {
   const workChatMessages = document.getElementById("work-chat-messages");
   
   if (workStartBtn && workInput && workChatMessages) {
+    // Copy work directory path button
+    const copyBtn = document.getElementById("work-dir-copy-btn");
+    if (copyBtn) {
+      copyBtn.addEventListener("click", () => {
+        const dir = document.getElementById("work-dir").value;
+        navigator.clipboard.writeText(dir).then(() => {
+          copyBtn.textContent = "✅ 已复制！";
+          setTimeout(() => { copyBtn.textContent = "📋 复制路径"; }, 2000);
+        });
+      });
+    }
+    
     workStartBtn.addEventListener("click", async () => {
       const task = workInput.value.trim();
       if (!task) {
