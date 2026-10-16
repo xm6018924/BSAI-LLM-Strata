@@ -1442,16 +1442,24 @@ async function initBottomModelSwitcher() {
   
   if (!btn || !dropdown || !list) return;
   
-  // Load current model
-  try {
-    const r = await fetch(`${MANAGER_URL}/api/current`);
-    const j = await r.json();
-    if (j.current) {
-      label.textContent = BS_MODELS[j.current] || j.current;
+  // Load current model (with retry in case engine is still loading)
+  async function loadCurrentModelWithRetry() {
+    for (let i = 0; i < 20; i++) { // retry up to 20 times = 60 seconds
+      try {
+        const r = await fetch(`${MANAGER_URL}/api/current`);
+        const j = await r.json();
+        if (j.current) {
+          label.textContent = BS_MODELS[j.current] || j.current;
+          return;
+        }
+      } catch (e) {
+        // still waiting
+      }
+      await new Promise(resolve => setTimeout(resolve, 3000));
     }
-  } catch (e) {
     label.textContent = "管理服务未启动";
   }
+  loadCurrentModelWithRetry();
   
   // Populate model list
   list.innerHTML = "";
