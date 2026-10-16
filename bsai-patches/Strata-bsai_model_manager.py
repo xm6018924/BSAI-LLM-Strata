@@ -257,19 +257,13 @@ def main():
     print(f"[BSAI Manager] Waiting page: http://127.0.0.1:{MANAGER_PORT}/")
     print(f"[BSAI Manager] Web UI will open automatically when ready")
     
-    # Start HTTP manager server first (so waiting page is available)
+    # Start HTTP manager server first (lightweight, no model loaded yet)
     httpd = socketserver.TCPServer(("127.0.0.1", MANAGER_PORT), ManagerHandler)
     manager_thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     manager_thread.start()
     
-    # Open waiting page immediately
-    import webbrowser
-    webbrowser.open(f"http://127.0.0.1:{MANAGER_PORT}/")
-    
-    # Start Strata engine in background
-    threading.Thread(target=start_strata, args=(initial_model,), daemon=True).start()
-    
-    print(f"[BSAI Manager] Ready! Waiting for engine to load...")
+    print(f"[BSAI Manager] Manager service ready on port {MANAGER_PORT}")
+    print(f"[BSAI Manager] 模型未自动加载 - 请在Web UI选择模型后启动，或运行工作流节点时自动拉起")
     
     # Keep main thread alive
     try:
