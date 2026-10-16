@@ -1547,6 +1547,29 @@ async function initBottomModelSwitcher() {
   const workChatMessages = document.getElementById("work-chat-messages");
   
   if (workStartBtn && workInput && workChatMessages) {
+    // Work feature cards
+    const featurePrompts = {
+      code: "帮我写一个Python程序，实现：",
+      file: "帮我处理本地文件，完成：",
+      game: "帮我做一个网页小游戏，实现："
+    };
+    document.querySelectorAll(".work-feature-card").forEach(card => {
+      card.addEventListener("click", () => {
+        const feat = card.dataset.feature;
+        const prompt = featurePrompts[feat];
+        if (prompt) {
+          workInput.value = prompt;
+          workInput.focus();
+        }
+      });
+      card.addEventListener("mouseenter", () => {
+        card.style.borderColor = "rgba(0,212,255,0.3)";
+      });
+      card.addEventListener("mouseleave", () => {
+        card.style.borderColor = "rgba(255,255,255,0.08)";
+      });
+    });
+    
     // Pick folder button
     const pickBtn = document.getElementById("work-dir-pick-btn");
     const picker = document.getElementById("work-dir-picker");
