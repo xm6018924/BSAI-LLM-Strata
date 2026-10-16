@@ -37,16 +37,27 @@ def start_strata(model_name):
     global current_process, current_model
     
     with lock:
-        # Stop existing process
+        # Stop existing process (kill entire process tree)
         if current_process:
             try:
-                current_process.terminate()
+                # Kill entire process tree on Windows
+                subprocess.run(["taskkill", "/f", "/t", "/pid", str(current_process.pid)], 
+                             capture_output=True)
                 current_process.wait(timeout=5)
             except:
                 try:
                     current_process.kill()
                 except:
                     pass
+        
+        # Also kill any remaining strata.exe processes
+        try:
+            subprocess.run(["taskkill", "/f", "/im", "strata.exe"], capture_output=True)
+        except:
+            pass
+        
+        # Wait a bit for ports and GPU to release
+        time.sleep(3)
         
         # Start new process
         if model_name not in MODELS:
