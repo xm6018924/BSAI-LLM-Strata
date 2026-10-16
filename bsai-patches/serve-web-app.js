@@ -1492,14 +1492,19 @@ async function initBottomModelSwitcher() {
 
 // Init when DOM ready
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initBottomModelSwitcher);
+  document.addEventListener("DOMContentLoaded", () => {
+    initBottomModelSwitcher();
+    initBsaiSidebar();
+  });
 } else {
   initBottomModelSwitcher();
+  initBsaiSidebar();
 }
 
 // ===== BSAI Sidebar Logic =====
-(function() {
+function initBsaiSidebar() {
   const menuItems = document.querySelectorAll(".bsai-menu-item");
+  if (!menuItems.length) return;
   
   menuItems.forEach(item => {
     item.addEventListener("click", () => {
@@ -1587,4 +1592,15 @@ if (document.readyState === "loading") {
     sidebarEl.textContent = "管理服务未启动";
   }
   updateSidebarModel();
-})();
+}
+
+// Init when DOM ready
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", () => {
+    initBottomModelSwitcher();
+    initBsaiSidebar();
+  });
+} else {
+  initBottomModelSwitcher();
+  initBsaiSidebar();
+}
