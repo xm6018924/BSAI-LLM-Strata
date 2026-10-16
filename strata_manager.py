@@ -840,7 +840,7 @@ if errorlevel 1 pause
         spec_val = _get_arg("--spec", "8")
         kv_resident_val = _get_arg("--kv-resident", "8192")
         vram_reserve_val = _get_arg("--vram-reserve-mib", "2000")
-        max_context_val = _get_arg("--max-context", "32768")
+        max_context_val = _get_arg("--max-context", "65536")
 
         # Build new args with correct paths + preserved tuning
         new_args = [
@@ -859,6 +859,7 @@ if errorlevel 1 pause
         ]
 
         new_cfg = {
+            "fit_max_tokens": True,
             "args": new_args,
             "port": cfg.get("port", 8080),
             "vision": {
