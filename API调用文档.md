@@ -4,18 +4,33 @@
 
 | 项目 | 值 |
 |------|-----|
-| API Base URL | `http://127.0.0.1:8080/v1` |
+| OpenAI Base URL | `http://127.0.0.1:8080/v1` |
+| Anthropic Base URL | `http://127.0.0.1:8080` |
 | API Key | 不需要（本地运行，随便填或留空） |
-| 协议 | OpenAI 兼容格式 |
+| 协议 | OpenAI + Anthropic 双兼容 |
 | 模型类型 | 多模态（文本 + 视觉） |
+
+> 💡 **怎么选？**
+> - 如果客户端是 OpenAI 格式（比如 OpenAI SDK、LangChain 等）→ 用 OpenAI Base URL
+> - 如果客户端是 Anthropic 格式（比如 Claude 客户端、WorkBuddy 等）→ 用 Anthropic Base URL
 
 ---
 
 ## 🤖 当前可用模型
 
-切换模型后，模型名称会变化。可以通过 `/v1/models` 接口查询当前模型。
+切换模型后，模型名称会变化。
 
-常见模型名称：
+### 怎么查询当前模型名称？
+1. 打开 Strata Web UI: `http://127.0.0.1:8080/`
+2. 进入 **About** 页面
+3. 找到 **Model and engine** 卡片，复制 `Model` 字段的值
+
+或者直接在浏览器访问：
+```
+http://127.0.0.1:8080/v1/models
+```
+
+### 常见模型名称：
 - `qwen3.8-flash-next-q2_0` - Q2_0 最快
 - `qwen3.8-flash-next-iq2_xs` - IQ2_XS 平衡
 - `qwen3.8-flash-next-iq3_xxs` - IQ3_XXS 更好
