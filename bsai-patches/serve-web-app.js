@@ -1560,6 +1560,80 @@ async function initBottomModelSwitcher() {
       switchModel(model);
     });
   });
+
+  // ===== Work page: Start button =====
+  const workStartBtn = document.getElementById("work-start-btn");
+  const workInput = document.getElementById("work-input");
+  const workChatEmpty = document.getElementById("work-chat-empty");
+  const workChatMessages = document.getElementById("work-chat-messages");
+  
+  if (workStartBtn && workInput && workChatMessages) {
+    workStartBtn.addEventListener("click", async () => {
+      const task = workInput.value.trim();
+      if (!task) {
+        alert("请先描述你想做什么任务！");
+        return;
+      }
+      
+      // Hide empty state
+      if (workChatEmpty) workChatEmpty.style.display = "none";
+      
+      // Add user message
+      const userMsg = document.createElement("div");
+      userMsg.style.cssText = "margin-bottom: 16px; text-align: right;";
+      userMsg.innerHTML = `<div style="display: inline-block; background: rgba(0,212,255,0.15); color: #00d4ff; padding: 12px 16px; border-radius: 12px; max-width: 80%; text-align: left; font-size: 14px;">${task}</div>`;
+      workChatMessages.appendChild(userMsg);
+      
+      // Add loading message
+      const loadingMsg = document.createElement("div");
+      loadingMsg.style.cssText = "margin-bottom: 16px;";
+      loadingMsg.innerHTML = `<div style="display: inline-block; background: rgba(255,255,255,0.05); color: #888; padding: 12px 16px; border-radius: 12px; font-size: 14px;">🤖 AI正在思考中...</div>`;
+      workChatMessages.appendChild(loadingMsg);
+      
+      // Scroll to bottom
+      const workChat = document.getElementById("work-chat");
+      workChat.scrollTop = workChat.scrollHeight;
+      
+      try {
+        // Send to Strata API
+        const r = await fetch("/v1/chat/completions", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            model: "qwen3.8-flash-next-q2_0",
+            messages: [
+              {role: "system", content: "你是一个专业的编程助手和工作助手。帮用户写代码、做软件、开发游戏、处理文件。用中文回复，代码块用```包裹。"},
+              {role: "user", content: task}
+            ],
+            temperature: 0.7,
+            max_tokens: 2048,
+            stream: false
+          })
+        });
+        const j = await r.json();
+        const reply = j.choices[0].message.content;
+        
+        // Remove loading
+        loadingMsg.remove();
+        
+        // Add AI reply
+        const aiMsg = document.createElement("div");
+        aiMsg.style.cssText = "margin-bottom: 16px;";
+        aiMsg.innerHTML = `<div style="display: inline-block; background: rgba(255,255,255,0.08); color: white; padding: 12px 16px; border-radius: 12px; max-width: 90%; font-size: 14px; white-space: pre-wrap;">${reply}</div>`;
+        workChatMessages.appendChild(aiMsg);
+        
+      } catch (e) {
+        loadingMsg.remove();
+        const errMsg = document.createElement("div");
+        errMsg.style.cssText = "margin-bottom: 16px; color: #ff6b6b; font-size: 14px;";
+        errMsg.textContent = "❌ 出错了：" + e.message;
+        workChatMessages.appendChild(errMsg);
+      }
+      
+      // Scroll to bottom
+      workChat.scrollTop = workChat.scrollHeight;
+    });
+  }
 }
 
 // Init when DOM ready
