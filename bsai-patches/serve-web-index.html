@@ -318,6 +318,160 @@
     </div>
   </section>
 
+  <!-- ============================ Template Library / 模板库 ============================ -->
+  <section class="view view--templates" id="view-templates" role="tabpanel" style="display:none; height: calc(100vh - 64px); overflow-y: auto;">
+    <div style="max-width: 900px; margin: 0 auto; padding: 40px 20px;">
+      <div style="margin-bottom: 24px;">
+        <h2 style="font-size: 24px; margin-bottom: 8px;">📋 模板库</h2>
+        <p style="color: #888; font-size: 14px;">内置常用提示词模板，点一下就填入对话框，直接用！</p>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+        <div class="template-card" data-template="code" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; cursor: pointer;">
+          <div style="font-size: 28px; margin-bottom: 10px;">💻</div>
+          <div style="font-weight: 600; font-size: 15px; margin-bottom: 6px;">写代码助手</div>
+          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">帮你写Python/JS/HTML代码，调试bug，优化性能</div>
+          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 12px;">使用模板</button>
+        </div>
+        
+        <div class="template-card" data-template="copy" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; cursor: pointer;">
+          <div style="font-size: 28px; margin-bottom: 10px;">✍️</div>
+          <div style="font-weight: 600; font-size: 15px; margin-bottom: 6px;">文案写作</div>
+          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">写公众号文章、产品文案、短视频脚本</div>
+          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 12px;">使用模板</button>
+        </div>
+        
+        <div class="template-card" data-template="image-reverse" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; cursor: pointer;">
+          <div style="font-size: 28px; margin-bottom: 10px;">🖼️</div>
+          <div style="font-weight: 600; font-size: 15px; margin-bottom: 6px;">图片反推</div>
+          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">上传图片，反推详细的AI绘画提示词</div>
+          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 12px;">使用模板</button>
+        </div>
+        
+        <div class="template-card" data-template="game" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; cursor: pointer;">
+          <div style="font-size: 28px; margin-bottom: 10px;">🎮</div>
+          <div style="font-weight: 600; font-size: 15px; margin-bottom: 6px;">做小游戏</div>
+          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">贪吃蛇、俄罗斯方块、网页小游戏开发</div>
+          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 12px;">使用模板</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ My Assistants / 我的助理 ============================ -->
+  <section class="view view--assistant" id="view-assistant" role="tabpanel" style="display:none; height: calc(100vh - 64px); overflow-y: auto;">
+    <div style="max-width: 900px; margin: 0 auto; padding: 40px 20px;">
+      <div style="margin-bottom: 24px;">
+        <h2 style="font-size: 24px; margin-bottom: 8px;">🤖 我的助理</h2>
+        <p style="color: #888; font-size: 14px;">内置专家角色，一键切换，让AI成为你的专属专家！</p>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+        <div class="assistant-card" data-assistant="coder" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; cursor: pointer;">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(0,212,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 24px;">👨‍💻</div>
+            <div>
+              <div style="font-weight: 600; font-size: 15px;">代码专家</div>
+              <div style="font-size: 12px; color: #888;">Python / JS / 全栈开发</div>
+            </div>
+          </div>
+          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">擅长写代码、调试bug、架构设计、性能优化</div>
+          <button class="st-btn st-btn--primary" style="font-size: 12px; padding: 6px 12px;">切换到此助理</button>
+        </div>
+        
+        <div class="assistant-card" data-assistant="writer" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; cursor: pointer;">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(255,193,7,0.2); display: flex; align-items: center; justify-content: center; font-size: 24px;">✍️</div>
+            <div>
+              <div style="font-weight: 600; font-size: 15px;">文案专家</div>
+              <div style="font-size: 12px; color: #888;">写作 / 营销 / 内容创作</div>
+            </div>
+          </div>
+          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">擅长写文章、产品文案、短视频脚本、营销话术</div>
+          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 12px;">切换到此助理</button>
+        </div>
+        
+        <div class="assistant-card" data-assistant="artist" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; cursor: pointer;">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(156,39,176,0.2); display: flex; align-items: center; justify-content: center; font-size: 24px;">🎨</div>
+            <div>
+              <div style="font-weight: 600; font-size: 15px;">画师助手</div>
+              <div style="font-size: 12px; color: #888;">AI绘画 / 提示词工程</div>
+            </div>
+          </div>
+          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">擅长AI绘画提示词、反推图片、风格描述、构图设计</div>
+          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 12px;">切换到此助理</button>
+        </div>
+        
+        <div class="assistant-card" data-assistant="analyst" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; cursor: pointer;">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(76,175,80,0.2); display: flex; align-items: center; justify-content: center; font-size: 24px;">📊</div>
+            <div>
+              <div style="font-weight: 600; font-size: 15px;">数据分析</div>
+              <div style="font-size: 12px; color: #888;">数据处理 / 表格 / 可视化</div>
+            </div>
+          </div>
+          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">擅长数据清洗、统计分析、Excel公式、图表设计</div>
+          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 12px;">切换到此助理</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ Plugin Market / 插件市场 ============================ -->
+  <section class="view view--plugins" id="view-plugins" role="tabpanel" style="display:none; height: calc(100vh - 64px); overflow-y: auto;">
+    <div style="max-width: 900px; margin: 0 auto; padding: 40px 20px;">
+      <div style="margin-bottom: 24px;">
+        <h2 style="font-size: 24px; margin-bottom: 8px;">🔌 插件市场</h2>
+        <p style="color: #888; font-size: 14px;">安装和使用各种Skill插件，扩展AI的能力！</p>
+      </div>
+      
+      <div style="text-align: center; padding: 80px 20px; color: #666;">
+        <div style="font-size: 64px; margin-bottom: 20px;">🔌</div>
+        <div style="font-size: 18px; margin-bottom: 12px;">插件市场即将上线</div>
+        <div style="font-size: 14px; max-width: 400px; margin: 0 auto;">
+          很快你就能在这里安装各种Skill插件，让AI拥有更多能力：文件处理、网页抓取、图片编辑、音频处理等等
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ Automation / 自动化 ============================ -->
+  <section class="view view--automation" id="view-automation" role="tabpanel" style="display:none; height: calc(100vh - 64px); overflow-y: auto;">
+    <div style="max-width: 900px; margin: 0 auto; padding: 40px 20px;">
+      <div style="margin-bottom: 24px;">
+        <h2 style="font-size: 24px; margin-bottom: 8px;">⏰ 自动化</h2>
+        <p style="color: #888; font-size: 14px;">定时任务、自动执行、工作流自动化！</p>
+      </div>
+      
+      <div style="text-align: center; padding: 80px 20px; color: #666;">
+        <div style="font-size: 64px; margin-bottom: 20px;">⏰</div>
+        <div style="font-size: 18px; margin-bottom: 12px;">自动化功能即将上线</div>
+        <div style="font-size: 14px; max-width: 400px; margin: 0 auto;">
+          很快你就能设置定时任务、自动处理文件、自动生成报告，让AI帮你自动干活
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ My Outputs / 我的产物 ============================ -->
+  <section class="view view--outputs" id="view-outputs" role="tabpanel" style="display:none; height: calc(100vh - 64px); overflow-y: auto;">
+    <div style="max-width: 900px; margin: 0 auto; padding: 40px 20px;">
+      <div style="margin-bottom: 24px;">
+        <h2 style="font-size: 24px; margin-bottom: 8px;">📁 我的产物</h2>
+        <p style="color: #888; font-size: 14px;">你生成的所有代码、文件、图片都在这里！</p>
+      </div>
+      
+      <div style="text-align: center; padding: 80px 20px; color: #666;">
+        <div style="font-size: 64px; margin-bottom: 20px;">📁</div>
+        <div style="font-size: 18px; margin-bottom: 12px;">还没有产物</div>
+        <div style="font-size: 14px; max-width: 400px; margin: 0 auto;">
+          当你用AI生成代码、做软件、处理文件后，所有产物都会保存在这里，方便随时查看和下载
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ============================ Images ============================ -->
   <section class="view view--images" id="view-images" role="tabpanel" aria-labelledby="tab-btn-images" hidden>
     <div class="about">

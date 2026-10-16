@@ -1643,38 +1643,43 @@ function initBsaiSidebar() {
       const page = item.dataset.page;
       console.log("Switch to page:", page);
       
-      // Switch views
-      const chatView = document.getElementById("view-chat");
-      const workView = document.getElementById("view-work");
-      const header = document.querySelector(".st-header");
+      // Hide all views first
+      const allViews = [
+        "view-chat", "view-work", "view-plugins", "view-assistant",
+        "view-automation", "view-templates", "view-outputs"
+      ];
+      allViews.forEach(v => {
+        const el = document.getElementById(v);
+        if (el) el.style.display = "none";
+      });
       
+      // Show current view
+      const viewMap = {
+        chat: "view-chat",
+        work: "view-work",
+        plugins: "view-plugins",
+        assistant: "view-assistant",
+        automation: "view-automation",
+        templates: "view-templates",
+        outputs: "view-outputs"
+      };
+      const targetView = document.getElementById(viewMap[page]);
+      if (targetView) {
+        targetView.style.display = "";
+      }
+      
+      // Hide top header on work page
+      const header = document.querySelector(".st-header");
+      if (page === "work") {
+        header.style.display = "none";
+      } else {
+        header.style.display = "";
+      }
+      
+      // If clicking new chat, clear the chat
       if (page === "chat") {
-        chatView.style.display = "";
-        workView.style.display = "none";
-        header.style.display = ""; // 保留顶部导航栏
-        // 清空当前聊天，开始新对话
         const newBtn = document.getElementById("new-btn");
         if (newBtn) newBtn.click();
-      } else if (page === "work") {
-        chatView.style.display = "none";
-        workView.style.display = "";
-        header.style.display = "none"; // Hide top header on work page
-      } else {
-        // Other pages - show alert then go back to chat
-        alert("📌 功能开发中，敬请期待！\n\n当前已实现：\n✅ 新建对话（聊天问答）\n✅ 新建工作（写代码、做软件、开发游戏）\n\n即将上线：插件市场、专家库、模板库等");
-        // Switch back to chat
-        menuItems.forEach(i => {
-          i.classList.remove("active");
-          i.style.background = "transparent";
-          i.style.color = "#ccc";
-        });
-        const chatItem = document.querySelector('.bsai-menu-item[data-page="chat"]');
-        chatItem.classList.add("active");
-        chatItem.style.background = "rgba(0, 212, 255, 0.15)";
-        chatItem.style.color = "#00d4ff";
-        chatView.style.display = "";
-        workView.style.display = "none";
-        header.style.display = "";
       }
     });
     
