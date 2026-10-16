@@ -1774,3 +1774,10 @@ function initBsaiSidebar() {
     });
   });
 }
+
+// Multiple sync attempts to make sure it works even with network delay
+window.addEventListener("load", () => {
+  setTimeout(loadCurrentModel, 1000);
+  setTimeout(loadCurrentModel, 3000);
+  setTimeout(loadCurrentModel, 6000);
+});
