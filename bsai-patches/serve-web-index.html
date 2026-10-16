@@ -128,32 +128,33 @@
     </div>
   </nav>
 
-  <!-- Bottom: Current Model + Switcher -->
+  <!-- Bottom: Current Model + Quick Switch -->
   <div style="padding: 12px 16px; border-top: 1px solid #2d2d44;">
-    <div style="color: #888; font-size: 11px; margin-bottom: 6px;">当前模型</div>
-    <div class="bsai-model-switcher" style="position: relative; display: inline-block; width: 100%;">
-      <button id="bsai-sidebar-model-btn" style="
-        width: 100%; display: flex; align-items: center; justify-content: space-between;
-        background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1);
-        border-radius: 8px; padding: 8px 12px; color: #00d4ff; font-size: 13px;
-        cursor: pointer; font-weight: 500;
-      ">
-        <span id="bsai-sidebar-model">加载中...</span>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M6 9l6 6 6-6"/>
-        </svg>
-      </button>
-      <div id="bsai-sidebar-model-dropdown" style="
-        position: absolute; bottom: 100%; left: 0; right: 0; margin-bottom: 4px;
-        background: #1a1a2e; border: 1px solid #333; border-radius: 8px;
-        min-width: 180px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        display: none; z-index: 100; overflow: hidden;
-      ">
-        <div style="padding: 8px 12px; font-size: 12px; color: #888; border-bottom: 1px solid #333;">切换模型</div>
-        <div id="bsai-sidebar-model-list" style="padding: 4px 0;">
-          <!-- Model items will be inserted here -->
-        </div>
-      </div>
+    <div style="color: #888; font-size: 11px; margin-bottom: 8px;">当前模型</div>
+    <div id="bsai-sidebar-model" style="color: #00d4ff; font-size: 13px; font-weight: 500; margin-bottom: 10px;">加载中...</div>
+    
+    <!-- Quick model buttons -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+      <button class="bsai-quick-model" data-model="Q2_0" style="
+        background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 6px; padding: 6px 8px; color: #ccc; font-size: 11px;
+        cursor: pointer; text-align: center;
+      ">🚀 Q2_0</button>
+      <button class="bsai-quick-model" data-model="IQ2_XS" style="
+        background: rgba(0,212,255,0.15); border: 1px solid rgba(0,212,255,0.3);
+        border-radius: 6px; padding: 6px 8px; color: #00d4ff; font-size: 11px;
+        cursor: pointer; text-align: center;
+      ">⚖️ IQ2_XS</button>
+      <button class="bsai-quick-model" data-model="IQ3_XXS" style="
+        background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 6px; padding: 6px 8px; color: #ccc; font-size: 11px;
+        cursor: pointer; text-align: center;
+      ">🎯 IQ3_XXS</button>
+      <button class="bsai-quick-model" data-model="IQ3_S" style="
+        background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 6px; padding: 6px 8px; color: #ccc; font-size: 11px;
+        cursor: pointer; text-align: center;
+      ">💎 IQ3_S</button>
     </div>
   </div>
 </aside>

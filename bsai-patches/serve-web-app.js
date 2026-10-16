@@ -1541,6 +1541,25 @@ async function initBottomModelSwitcher() {
     }
     loadSidebarModel();
   }
+
+  // ===== Sidebar quick model buttons =====
+  const quickBtns = document.querySelectorAll(".bsai-quick-model");
+  quickBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const model = btn.dataset.model;
+      // Update active style
+      quickBtns.forEach(b => {
+        b.style.background = "rgba(255,255,255,0.06)";
+        b.style.borderColor = "rgba(255,255,255,0.1)";
+        b.style.color = "#ccc";
+      });
+      btn.style.background = "rgba(0,212,255,0.15)";
+      btn.style.borderColor = "rgba(0,212,255,0.3)";
+      btn.style.color = "#00d4ff";
+      // Switch model
+      switchModel(model);
+    });
+  });
 }
 
 // Init when DOM ready
