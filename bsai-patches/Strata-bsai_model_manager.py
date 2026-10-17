@@ -84,10 +84,11 @@ def start_strata(model_name):
         print(f"[BSAI Manager] Model {model_name} is now active!")
 
 
-def wait_for_engine(timeout=600):
-    """Wait for Strata engine to be ready"""
+def wait_for_engine(timeout=1800):
+    """Wait for Strata engine to be ready - 30 min timeout for large models"""
     import urllib.request
     start_time = time.time()
+    last_print = 0
     while time.time() - start_time < timeout:
         try:
             req = urllib.request.Request(f"http://127.0.0.1:{STRATA_PORT}/v1/models")
@@ -97,8 +98,13 @@ def wait_for_engine(timeout=600):
                     return True
         except:
             pass
+        # Print progress every 30 seconds
+        elapsed = int(time.time() - start_time)
+        if elapsed - last_print >= 30:
+            print(f"[BSAI Manager] Still loading... {elapsed}s elapsed")
+            last_print = elapsed
         time.sleep(2)
-    print(f"[BSAI Manager] Engine wait timeout!")
+    print(f"[BSAI Manager] Engine wait timeout after {timeout}s!")
     return False
 
 
@@ -171,6 +177,30 @@ class ManagerHandler(http.server.BaseHTTPRequestHandler):
             })
         elif self.path == "/api/current":
             self.send_json({"current": current_model})
+        elif self.path.startswith("/api/websearch"):
+            # Simple web search using DuckDuckGo
+            from urllib.parse import urlparse, parse_qs
+            parsed = urlparse(self.path)
+            params = parse_qs(parsed.query)
+            query = params.get("q", [""])[0]
+            if not query:
+                self.send_json({"error": "No query provided"}, 400)
+                return
+            try:
+                import urllib.request
+                url = f"https://api.duckduckgo.com/?q={urllib.parse.quote(query)}&format=json&no_html=1&skip_disambig=1"
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    results = []
+                    if data.get("AbstractText"):
+                        results.append({"title": data.get("Heading", ""), "snippet": data.get("AbstractText"), "url": data.get("AbstractURL", "")})
+                    for topic in data.get("RelatedTopics", [])[:5]:
+                        if "Text" in topic and "FirstURL" in topic:
+                            results.append({"title": topic.get("Text", "")[:80], "snippet": topic.get("Text", "")[:300], "url": topic.get("FirstURL", "")})
+                    self.send_json({"query": query, "results": results[:5]})
+            except Exception as e:
+                self.send_json({"error": f"Search failed: {str(e)}", "results": []})
         else:
             self.send_json({"error": "Not found"}, 404)
     
@@ -237,7 +267,7 @@ def main():
         # Find PID occupying the port
         result = subprocess.run(
             ["netstat", "-ano", "-p", "TCP"],
-            capture_output=True, text=True
+            capture_output=True, text=True, encoding="gbk", errors="replace"
         )
         for line in result.stdout.splitlines():
             if f":{MANAGER_PORT}" in line and "LISTENING" in line:
@@ -257,13 +287,19 @@ def main():
     print(f"[BSAI Manager] Waiting page: http://127.0.0.1:{MANAGER_PORT}/")
     print(f"[BSAI Manager] Web UI will open automatically when ready")
     
-    # Start HTTP manager server first (lightweight, no model loaded yet)
+    # Start HTTP manager server first
     httpd = socketserver.TCPServer(("127.0.0.1", MANAGER_PORT), ManagerHandler)
     manager_thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     manager_thread.start()
     
-    print(f"[BSAI Manager] Manager service ready on port {MANAGER_PORT}")
-    print(f"[BSAI Manager] 模型未自动加载 - 请在Web UI选择模型后启动，或运行工作流节点时自动拉起")
+    # Auto-start model if a model is specified on command line (manual launch)
+    if initial_model:
+        import webbrowser
+        print(f"[BSAI Manager] Auto-starting model: {initial_model}")
+        threading.Thread(target=start_strata, args=(initial_model,), daemon=True).start()
+        webbrowser.open(f"http://127.0.0.1:{MANAGER_PORT}/")
+    else:
+        print(f"[BSAI Manager] Manager service ready, no auto model load (ComfyUI internal mode)")
     
     # Keep main thread alive
     try:

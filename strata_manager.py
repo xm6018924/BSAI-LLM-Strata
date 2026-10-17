@@ -926,7 +926,7 @@ if errorlevel 1 pause
 
     # ---------- HTTP call ----------
     @staticmethod
-    def chat(messages, model=DEFAULT_STRATA_MODEL, max_tokens=1024,
+    def chat(messages, model=DEFAULT_STRATA_MODEL, max_tokens=16384,
              temperature=0.7, timeout=600):
         url = f"{DEFAULT_STRATA_BASE_URL}/chat/completions"
         body = json.dumps({

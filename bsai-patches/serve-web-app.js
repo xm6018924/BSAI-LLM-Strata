@@ -726,6 +726,10 @@ $("chat").addEventListener("toggle", (e) => {
 
 function apiMessages() {
   const out = [];
+  // Inject current date so model doesn't guess wrong dates
+  const now = new Date();
+  const today = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 星期${['日','一','二','三','四','五','六'][now.getDay()]}`;
+  out.push({role: "system", content: `今天是${today}。你是本地运行的BSAI百声AI助手，用中文回复。回答涉及时间时，请使用这个真实当前日期，不要自己编造时间。`});
   for (const m of messages) {
     if (m.role === "user") {
       const imgs = (m.images || []).filter((i) => i.url);
@@ -796,7 +800,7 @@ async function send() {
     body.temperature = 0;
   }
   if (settings.seed) body.seed = +settings.seed;
-  if (settings.max) body.max_tokens = +settings.max;
+  body.max_tokens = +settings.max || 16384;  // Max output length for all models
   if (projectionLoaded()) body.experimental_speed_projection = !!settings.esp;
   if (settings.mcp !== false && mcpInfo.tools > 0) body.strata_mcp = true;   // this server may run MCP tools for it
 
@@ -1696,11 +1700,11 @@ async function initBottomModelSwitcher() {
           body: JSON.stringify({
             model: "qwen3.8-flash-next-q2_0",
             messages: [
-              {role: "system", content: "你是一个专业的编程助手和工作助手。帮用户写代码、做软件、开发游戏、处理文件。用中文回复，代码块用```包裹。"},
+              {role: "system", content: `今天是${new Date().getFullYear()}年${new Date().getMonth()+1}月${new Date().getDate()}日。你是一个专业的编程助手和工作助手。帮用户写代码、做软件、开发游戏、处理文件。用中文回复，代码块用\`\`\`包裹。回答涉及时间时请使用真实当前日期，不要编造时间。`},
               {role: "user", content: task}
             ],
             temperature: 0.7,
-            max_tokens: 2048,
+            max_tokens: 16384,
             stream: false
           })
         });
