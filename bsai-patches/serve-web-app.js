@@ -726,10 +726,10 @@ $("chat").addEventListener("toggle", (e) => {
 
 function apiMessages() {
   const out = [];
-  // Inject current date so model doesn't guess wrong dates
+  // Inject current date + web search capability
   const now = new Date();
   const today = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 星期${['日','一','二','三','四','五','六'][now.getDay()]}`;
-  out.push({role: "system", content: `今天是${today}。你是本地运行的BSAI百声AI助手，用中文回复。回答涉及时间时，请使用这个真实当前日期，不要自己编造时间。`});
+  out.push({role: "system", content: `今天是${today}。你是本地运行的BSAI百声AI助手，用中文回复。回答涉及时间时使用这个真实日期，不要编造时间。如果用户问的是最新资讯、最近一周的更新，你可以诚实说明"我是本地离线模型，无法实时联网获取最新信息，基于我的知识截止日期我能提供以下内容..."，不要编造最近一周的虚假信息。`});
   for (const m of messages) {
     if (m.role === "user") {
       const imgs = (m.images || []).filter((i) => i.url);
@@ -873,6 +873,35 @@ async function send() {
   updateAssistant(el, m, false);
   saveChat();
   scrollDown();
+
+  // Auto-detect SEARCH: command and run web search
+  const searchMatch = m.text.match(/^SEARCH:\s*(.+)$/m);
+  if (searchMatch && !m.searchDone) {
+    const query = searchMatch[1].trim();
+    m.text = m.text.replace(searchMatch[0], "🔍 正在联网搜索: " + query + " ...");
+    updateAssistant(el, m, false);
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const resp = await fetch(`http://127.0.0.1:8081/api/websearch?q=${encodeURIComponent(query)}`, {signal: controller.signal});
+      clearTimeout(timeoutId);
+      const data = await resp.json();
+      let searchResult = "【联网搜索结果】:\n";
+      if (data.results && data.results.length > 0) {
+        data.results.forEach((r, i) => {
+          searchResult += `${i+1}. ${r.title}\n${r.snippet}\n${r.url}\n\n`;
+        });
+      } else {
+        searchResult += "未搜索到相关结果。\n";
+      }
+      // Add search result as context and auto-continue
+      messages.push({role: "user", text: searchResult + "\n请基于以上真实搜索结果，整理成清晰的中文回答给我。", time: Date.now()});
+      send();
+    } catch (e) {
+      m.text = "⚠️ 联网搜索失败：当前网络无法访问外部搜索服务（DuckDuckGo被墙）。请开启代理后再试，或直接告诉我你要查的内容关键词。";
+      updateAssistant(el, m, false);
+    }
+  }
 }
 
 $("composer").onsubmit = (e) => { e.preventDefault(); send(); };
