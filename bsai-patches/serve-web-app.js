@@ -698,7 +698,17 @@ function renderChat() {
   scrollDown(true);
 }
 function nearBottom() { const s = $("chat-scroll"); return s.scrollHeight - s.scrollTop - s.clientHeight < 120; }
-function scrollDown(force) { const s = $("chat-scroll"); if (force || nearBottom()) s.scrollTop = s.scrollHeight; }
+function scrollDown(force) {
+  const s = $("chat-scroll");
+  if (force || nearBottom()) {
+    // Wait for DOM render to finish, then force scroll to bottom
+    requestAnimationFrame(() => {
+      s.scrollTop = s.scrollHeight;
+      // Double check after fonts/images load
+      setTimeout(() => s.scrollTop = s.scrollHeight, 50);
+    });
+  }
+}
 
 $("chat").addEventListener("click", (e) => {
   const cc = e.target.closest("[data-code-copy]");
@@ -729,7 +739,8 @@ function apiMessages() {
   // Inject current date + web search capability
   const now = new Date();
   const today = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 星期${['日','一','二','三','四','五','六'][now.getDay()]}`;
-  out.push({role: "system", content: `今天是${today}。你是本地运行的BSAI百声AI助手，用中文回复。回答涉及时间时使用这个真实日期，不要编造时间。如果用户问的是最新资讯、最近一周的更新，你可以诚实说明"我是本地离线模型，无法实时联网获取最新信息，基于我的知识截止日期我能提供以下内容..."，不要编造最近一周的虚假信息。`});
+  out.push({role: "system", content: `今天是${today}。你是本地运行的BSAI百声AI助手，用中文回复。回答涉及时间时使用这个真实日期，不要编造时间。
+如果用户需要查最新资讯、最新技术、最近一周的新闻或更新，你可以直接在回答里输出一行：SEARCH: 搜索关键词（用简短的中文关键词），系统会自动用国内必应联网搜索并把结果返回给你，你再基于真实搜索结果整理回答。不要自己编造最近一周的信息，不确定的就主动用SEARCH搜索。`});
   for (const m of messages) {
     if (m.role === "user") {
       const imgs = (m.images || []).filter((i) => i.url);
@@ -805,7 +816,7 @@ async function send() {
   if (settings.mcp !== false && mcpInfo.tools > 0) body.strata_mcp = true;   // this server may run MCP tools for it
 
   let firstAt = null, thinkStart = null, usage = null, frame = 0;
-  const paint = () => { frame = 0; updateAssistant(el, m, true); scrollDown(); };
+  const paint = () => { frame = 0; updateAssistant(el, m, true); scrollDown(true); };
   try {
     const r = await fetch("v1/chat/completions", {method: "POST", headers: headers(true), body: JSON.stringify(body),
                                                    signal: controller.signal});
@@ -874,7 +885,7 @@ async function send() {
   saveChat();
   scrollDown();
 
-  // Auto-detect SEARCH: command and run web search
+  // Auto-detect SEARCH: command and run web search (max 1 round, 6s timeout)
   const searchMatch = m.text.match(/^SEARCH:\s*(.+)$/m);
   if (searchMatch && !m.searchDone) {
     const query = searchMatch[1].trim();
@@ -882,8 +893,8 @@ async function send() {
     updateAssistant(el, m, false);
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-      const resp = await fetch(`http://127.0.0.1:8081/api/websearch?q=${encodeURIComponent(query)}`, {signal: controller.signal});
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      const resp = await fetch(`${MANAGER_URL}/api/websearch?q=${encodeURIComponent(query)}`, {signal: controller.signal});
       clearTimeout(timeoutId);
       const data = await resp.json();
       let searchResult = "【联网搜索结果】:\n";
@@ -894,11 +905,12 @@ async function send() {
       } else {
         searchResult += "未搜索到相关结果。\n";
       }
-      // Add search result as context and auto-continue
-      messages.push({role: "user", text: searchResult + "\n请基于以上真实搜索结果，整理成清晰的中文回答给我。", time: Date.now()});
+      messages.push({role: "user", text: searchResult + "\n请基于以上真实搜索结果，直接整理成最终中文回答给我。不要再输出SEARCH指令了。", time: Date.now()});
+      m.searchDone = true;
       send();
     } catch (e) {
-      m.text = "⚠️ 联网搜索失败：当前网络无法访问外部搜索服务（DuckDuckGo被墙）。请开启代理后再试，或直接告诉我你要查的内容关键词。";
+      m.text = "⚠️ 联网搜索超时，基于已有知识回答如下：";
+      m.searchDone = true;
       updateAssistant(el, m, false);
     }
   }

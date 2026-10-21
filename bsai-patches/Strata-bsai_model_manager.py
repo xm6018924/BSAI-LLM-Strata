@@ -178,7 +178,7 @@ class ManagerHandler(http.server.BaseHTTPRequestHandler):
         elif self.path == "/api/current":
             self.send_json({"current": current_model})
         elif self.path.startswith("/api/websearch"):
-            # Simple web search using DuckDuckGo
+            # Web search using Bing China (no VPN needed)
             from urllib.parse import urlparse, parse_qs
             parsed = urlparse(self.path)
             params = parse_qs(parsed.query)
@@ -188,17 +188,32 @@ class ManagerHandler(http.server.BaseHTTPRequestHandler):
                 return
             try:
                 import urllib.request
-                url = f"https://api.duckduckgo.com/?q={urllib.parse.quote(query)}&format=json&no_html=1&skip_disambig=1"
-                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-                with urllib.request.urlopen(req, timeout=10) as resp:
-                    data = json.loads(resp.read().decode("utf-8"))
+                import re
+                import ssl
+                # Disable SSL verification to avoid Windows cert store issues
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                url = f"https://cn.bing.com/search?q={urllib.parse.quote(query)}&setlang=zh-CN"
+                req = urllib.request.Request(url, headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Accept-Language": "zh-CN,zh;q=0.9"
+                })
+                with urllib.request.urlopen(req, timeout=5, context=ctx) as resp:
+                    html = resp.read().decode("utf-8", "replace")
                     results = []
-                    if data.get("AbstractText"):
-                        results.append({"title": data.get("Heading", ""), "snippet": data.get("AbstractText"), "url": data.get("AbstractURL", "")})
-                    for topic in data.get("RelatedTopics", [])[:5]:
-                        if "Text" in topic and "FirstURL" in topic:
-                            results.append({"title": topic.get("Text", "")[:80], "snippet": topic.get("Text", "")[:300], "url": topic.get("FirstURL", "")})
-                    self.send_json({"query": query, "results": results[:5]})
+                    # Extract Bing search results
+                    blocks = re.findall(r'<li class="b_algo".*?</li>', html, re.DOTALL)
+                    for block in blocks[:5]:
+                        title_m = re.search(r'<h2>.*?<a.*?>(.*?)</a>', block, re.DOTALL)
+                        snippet_m = re.search(r'<p class="b_lineclamp.*?">(.*?)</p>', block, re.DOTALL)
+                        url_m = re.search(r'<h2>.*?<a href="(.*?)"', block, re.DOTALL)
+                        if title_m:
+                            title = re.sub(r'<.*?>', '', title_m.group(1)).strip()
+                            snippet = re.sub(r'<.*?>', '', snippet_m.group(1)).strip() if snippet_m else ""
+                            result_url = url_m.group(1) if url_m else ""
+                            results.append({"title": title[:80], "snippet": snippet[:300], "url": result_url})
+                    self.send_json({"query": query, "results": results})
             except Exception as e:
                 self.send_json({"error": f"Search failed: {str(e)}", "results": []})
         else:

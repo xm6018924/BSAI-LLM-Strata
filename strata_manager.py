@@ -946,27 +946,660 @@ if errorlevel 1 pause
 
 
 # ---------------------------------------------------------------------------
+# NInferManager — local NInfer reverse engine
+#
+# The NInfer runtime lives inside the BSAI-FLUX3-ComfyUI plugin
+# (engine/ninfer-sm120|ninfer-sm89/ninfer-serve.exe, ported from the
+# original ComfyUI-AIManzi-MultimodalPrompt plugin) and consumes *.ninfer
+# models from ComfyUI/models/LLM. BSAI plugins talk to it through the same
+# OpenAI-compatible protocol as Strata.
+#
+# Port policy: NInfer listens on a DYNAMIC port starting at NINFER_PORT (8081).
+# 8081 is often already taken by a user's other Strata instance (e.g. the C:\
+# install), so the manager scans upward for the first free port and remembers
+# it for the rest of the session. All BSAI plugins must call NInferManager
+# (via ensure_running / chat / base_url) instead of hard-coding a port.
+# ---------------------------------------------------------------------------
+NINFER_HOST = "127.0.0.1"
+NINFER_PORT = 8081
+NINFER_PORT_RANGE = 10  # scan 8081..8090 for a free port
+NINFER_BASE_URL = f"http://{NINFER_HOST}:{NINFER_PORT}/v1"
+
+# ---------------------------------------------------------------------------
+# NemotronManager — local llama.cpp engine for NVIDIA Nemotron 3.5 Bolt 74B-A9B
+#
+# 与 Strata / NInfer 并列的第三个本地 LLM 引擎选项（所有 BSAI 插件通用）：
+#   - 引擎: llama.cpp (llama-server.exe, 需要 v0.7.0+，已内置 Nemotron Bolt 支持)
+#   - 模型: 用户自行下载到 ComfyUI/models/LLM/Nemotron/
+#           NVIDIA-Nemotron-3.5-Bolt-74B-A9B-24GB.gguf (+ mmproj-*.gguf 视觉投影)
+#   - 端口: 8085 (避开 Strata 8080 / NInfer 8081)
+# 所有 BSAI 插件必须通过 NemotronManager (ensure_running / chat / base_url)
+# 调用，而不是硬编码端口。
+# ---------------------------------------------------------------------------
+NEMOTRON_HOST = "127.0.0.1"
+NEMOTRON_PORT = 8085
+NEMOTRON_BASE_URL = f"http://{NEMOTRON_HOST}:{NEMOTRON_PORT}/v1"
+NEMOTRON_MODEL_DIR = os.path.join(folder_paths.models_dir, "LLM", "Nemotron")
+NEMOTRON_DEFAULT_ALIAS = "Nemotron-3.5-Bolt-74B-A9B"
+# 提示词增强场景上下文需求很小（system+user 几百 token，输出几百 token），
+# 64K 上下文会让 KV 缓存占满显存被迫走 CPU，速度暴跌。8K 足够且释放大量显存。
+# 可用环境变量 BSAI_NEMOTRON_CTX 覆盖。
+NEMOTRON_DEFAULT_CONTEXT = int(os.environ.get("BSAI_NEMOTRON_CTX", "8192"))
+
+# ComfyUI custom_nodes root: this file lives in <root>/BSAI-LLM-Strata/
+_CUSTOM_NODES_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+class NInferManager:
+    """Auto-discover the bundled ninfer-serve.exe + first *.ninfer model,
+    start it with --vision on a free local port, and health-check /v1/models."""
+
+    _lock = threading.Lock()
+    _proc = None
+    _detected_engine = None
+    _detected_model = None
+    _model_ids = []
+    _active_port = None  # resolved free port for this session
+    _active_model_path = None  # absolute path of the model currently loaded
+
+    # ---------- port resolution ----------
+    @classmethod
+    def base_url(cls):
+        """URL of the session's NInfer server (dynamic port)."""
+        if cls._active_port:
+            return f"http://{NINFER_HOST}:{cls._active_port}/v1"
+        return NINFER_BASE_URL
+
+    @staticmethod
+    def _port_free(port, timeout=0.3):
+        try:
+            s = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+            s.settimeout(timeout)
+            s.connect((NINFER_HOST, port))
+            s.close()
+            return False  # something is listening -> occupied
+        except Exception:
+            return True
+
+    @classmethod
+    def _resolve_free_port(cls):
+        if cls._active_port and cls._port_free(cls._active_port):
+            return cls._active_port
+        for p in range(NINFER_PORT, NINFER_PORT + NINFER_PORT_RANGE):
+            if cls._port_free(p):
+                cls._active_port = p
+                return p
+        cls._active_port = NINFER_PORT
+        return NINFER_PORT
+
+    # ---------- discovery ----------
+    @classmethod
+    def _aimanzi_plugin_dir(cls):
+        """Return the directory that bundles the ninfer-serve engine.
+
+        The engine was ported from ComfyUI-AIManzi-MultimodalPrompt into
+        BSAI-FLUX3-ComfyUI/engine/ (ninfer-sm120, ninfer-sm89, runtime).
+        """
+        p = os.path.join(_CUSTOM_NODES_ROOT, "BSAI-FLUX3-ComfyUI")
+        if os.path.isdir(p) and os.path.isdir(os.path.join(p, "engine")):
+            return p
+        return None
+
+    @classmethod
+    def find_engine(cls):
+        """Return the ninfer-serve.exe path for this GPU, or None."""
+        if cls._detected_engine:
+            return cls._detected_engine
+        plugin = cls._aimanzi_plugin_dir()
+        if not plugin:
+            return None
+        # Pick sm120 for RTX 50-series, sm89 for RTX 40-series
+        profile = None
+        try:
+            out = subprocess.run(
+                ["nvidia-smi", "--query-gpu=compute_cap", "--format=csv,noheader"],
+                capture_output=True, text=True, timeout=5,
+            )
+            cap = float(out.stdout.strip().splitlines()[0])
+            if cap >= 12.0:
+                profile = "ninfer-sm120"
+            elif cap >= 8.9:
+                profile = "ninfer-sm89"
+        except Exception:
+            pass
+        if not profile:
+            for cand in ("ninfer-sm120", "ninfer-sm89"):
+                exe = os.path.join(plugin, "engine", cand, "ninfer-serve.exe")
+                if os.path.exists(exe):
+                    profile = cand
+                    break
+        if not profile:
+            return None
+        exe = os.path.join(plugin, "engine", profile, "ninfer-serve.exe")
+        if os.path.exists(exe):
+            cls._detected_engine = exe
+            return exe
+        return None
+
+    @classmethod
+    def find_model(cls):
+        """Return the first *.ninfer model under ComfyUI/models/LLM, or None."""
+        if cls._detected_model:
+            return cls._detected_model
+        lst = cls.list_models()
+        if not lst:
+            return None
+        cls._detected_model = lst[0][1]
+        return cls._detected_model
+
+    @classmethod
+    def list_models(cls):
+        """Return [(display_rel_path, absolute_path), ...] for every *.ninfer
+        model under ComfyUI/models/LLM (recursive, sorted)."""
+        out = []
+        llm_root = os.path.join(folder_paths.models_dir, "LLM")
+        if not os.path.isdir(llm_root):
+            return out
+        for root, _dirs, files in os.walk(llm_root):
+            for f in sorted(files):
+                if f.lower().endswith(".ninfer"):
+                    abs_p = os.path.join(root, f)
+                    rel = os.path.relpath(abs_p, llm_root).replace("\\", "/")
+                    out.append((rel, abs_p))
+        return out
+
+    @classmethod
+    def resolve_model(cls, model_path):
+        """Accept a display rel path or absolute path; return absolute path."""
+        if not model_path:
+            return cls.find_model()
+        p = str(model_path).replace("/", os.sep)
+        if os.path.isabs(p):
+            return p if os.path.exists(p) else None
+        cand = os.path.join(folder_paths.models_dir, "LLM", p)
+        return cand if os.path.exists(cand) else None
+
+    @classmethod
+    def _stop(cls, timeout=15.0):
+        """Terminate the running ninfer-serve process (used for model switch)."""
+        proc = cls._proc
+        if proc is not None and proc.poll() is None:
+            try:
+                proc.terminate()
+                try:
+                    proc.wait(timeout)
+                except Exception:
+                    pass
+            except Exception:
+                pass
+            if proc.poll() is None:
+                try:
+                    import subprocess as _sp
+                    _sp.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                            capture_output=True, timeout=10)
+                except Exception:
+                    pass
+        cls._proc = None
+        cls._model_ids = []
+
+    # ---------- health ----------
+    @classmethod
+    def health(cls, timeout=1.5):
+        url = f"{cls.base_url()}/models"
+        try:
+            status, body = _blocking_get_json(url, timeout=timeout)
+            data = json.loads(body)
+            cls._model_ids = [m.get("id", "?") for m in data.get("data", [])]
+            return {"ok": True, "models": cls._model_ids}
+        except Exception as e:
+            return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+    @classmethod
+    def models(cls):
+        """Return model ids served by the (running) NInfer server."""
+        h = cls.health(timeout=1.0)
+        return h.get("models") or cls._model_ids
+
+    # ---------- ensure running (auto-start + wait) ----------
+    @classmethod
+    def ensure_running(cls, wait_timeout=180.0, poll_interval=2.0, model_path=None):
+        """Block until our NInfer server is reachable; spawn it if needed.
+        model_path: optional absolute (or LLM-relative) path to a specific
+        .ninfer model; switching to a different model restarts the engine."""
+        target = cls.resolve_model(model_path)
+        if target is None:
+            target = cls.find_model()
+        # If we already own a port with a live service and the same model, done.
+        if (cls._active_port and cls._active_model_path == target
+                and cls.health(timeout=1.0).get("ok")):
+            return True, f"already_running @{cls._active_port} ({os.path.basename(target)})"
+        with cls._lock:
+            # Re-probe under the lock (avoid double spawn).
+            if (cls._active_port and cls._active_model_path == target
+                    and cls.health(timeout=1.0).get("ok")):
+                return True, f"already_running @{cls._active_port} ({os.path.basename(target)})"
+            engine = cls.find_engine()
+            if not engine:
+                return False, "ninfer-serve.exe 未找到。请确认 BSAI-FLUX3-ComfyUI 插件的 engine/ 目录完整。"
+            model = target or cls.find_model()
+            if not model:
+                return False, "未找到 *.ninfer 模型。请把 .ninfer 模型放入 ComfyUI/models/LLM。"
+            # Switching models: stop the current engine first.
+            if cls._proc is not None and cls._proc.poll() is None:
+                if cls._active_model_path != model:
+                    print(f"[BSAI-LLM-Strata] NInfer 切换模型: "
+                          f"{os.path.basename(cls._active_model_path or '?')} -> {os.path.basename(model)}")
+                    cls._stop()
+                    time.sleep(2)
+            port = cls._resolve_free_port()
+            # Kill any leftover ninfer from a previous ComfyUI session that is
+            # still holding VRAM (otherwise the new launch fails with OOM).
+            cls._kill_orphans()
+            cls._release_comfy_vram()
+            command = [
+                engine, model,
+                "--host", NINFER_HOST, "--port", str(port),
+                "--max-context", "32768", "--kv-capacity", "32768",
+                "--max-concurrency", "1", "--kv-dtype", "fp8",
+                "--default-max-tokens", "32768",
+                "--vision", "--no-thinking",
+            ]
+            cls._active_model_path = model
+            plugin = cls._aimanzi_plugin_dir() or ""
+            env = os.environ.copy()
+            env["PATH"] = (os.path.dirname(engine) + os.pathsep
+                           + os.path.join(plugin, "engine", "runtime") + os.pathsep
+                           + env.get("PATH", ""))
+            log_path = os.path.join(_PLUGIN_DIR, "ninfer-startup.log")
+            try:
+                with open(log_path, "a", encoding="utf-8") as lf:
+                    lf.write(f"\n--- {time.strftime('%Y-%m-%d %H:%M:%S')} BSAI start @{port} "
+                             f"model={os.path.basename(model)} ---\n")
+                    cls._proc = subprocess.Popen(
+                        command, cwd=plugin, env=env,
+                        stdout=lf, stderr=subprocess.STDOUT,
+                    )
+            except Exception as e:
+                return False, f"启动 ninfer 失败: {type(e).__name__}: {e}"
+            deadline = time.time() + wait_timeout
+            while time.time() < deadline:
+                time.sleep(poll_interval)
+                h = cls.health(timeout=2.0)
+                if h.get("ok"):
+                    print(f"[BSAI-LLM-Strata] NInfer 引擎就绪 @{port}: {h.get('models')}")
+                    return True, f"started_and_ready @{port}"
+                if cls._proc.poll() is not None:
+                    try:
+                        tail = open(log_path, encoding="utf-8", errors="replace").read().splitlines()[-15:]
+                    except Exception:
+                        tail = []
+                    return False, "NInfer 进程已退出。引擎日志:\n" + "\n".join(tail)
+            return False, f"等待 NInfer 启动超时({wait_timeout:.0f}s)"
+
+    @staticmethod
+    def _kill_orphans():
+        """Kill any leftover ninfer-serve.exe from our engine directory.
+
+        ComfyUI restarts don't terminate child processes; a previous session's
+        ninfer can still hold 7-15 GB VRAM and cause the next launch to fail
+        with 'model weights require X bytes but only Y free'. We only kill
+        processes whose exe lives under our engine dir, never user services.
+        """
+        try:
+            import psutil  # type: ignore
+        except ImportError:
+            return
+        plugin_dir = NInferManager._aimanzi_plugin_dir()
+        if not plugin_dir:
+            return
+        engine_root = os.path.join(plugin_dir, "engine")
+        killed = []
+        for proc in psutil.process_iter(["name", "exe"]):
+            try:
+                name = (proc.info.get("name") or "").lower()
+                if name != "ninfer-serve.exe":
+                    continue
+                exe = proc.info.get("exe") or ""
+                if engine_root.lower() in exe.lower():
+                    proc.terminate()
+                    try:
+                        proc.wait(timeout=10)
+                    except Exception:
+                        proc.kill()
+                        proc.wait(timeout=10)
+                    killed.append(proc.pid)
+            except Exception:
+                continue
+        if killed:
+            print(f"[BSAI-LLM-Strata] NInfer orphan processes killed: {killed}")
+            time.sleep(1.0)
+
+    @staticmethod
+    def _release_comfy_vram():
+        """Unload ComfyUI models so the ~16GB ninfer runtime can load."""
+        try:
+            import comfy.model_management as mm
+            mm.unload_all_models()
+            try:
+                mm.soft_empty_cache(True)
+            except TypeError:
+                mm.soft_empty_cache()
+        except Exception:
+            pass
+        try:
+            import gc
+            gc.collect()
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                try:
+                    torch.cuda.ipc_collect()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    # ---------- HTTP call ----------
+    @staticmethod
+    def chat(messages, model=None, max_tokens=8192, temperature=0.7, timeout=600):
+        """POST /v1/chat/completions to the local NInfer server (OpenAI-compatible)."""
+        if not model:
+            mids = NInferManager.models()
+            model = mids[0] if mids else "default"
+        url = f"{NInferManager.base_url()}/chat/completions"
+        body = json.dumps({
+            "model": model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "stream": False,
+        }).encode("utf-8")
+        status, raw = _blocking_post_json(url, body, timeout=timeout)
+        if status >= 400:
+            raise RuntimeError(f"NInfer HTTP {status}: {raw[:300]}")
+        return json.loads(raw)
+
+
+# ---------------------------------------------------------------------------
+# NemotronManager — local llama.cpp engine for NVIDIA Nemotron 3.5 Bolt 74B-A9B
+#
+# 与 Strata / NInfer 并列的第三个本地 LLM 引擎选项。llama.cpp (v0.7.0+) 已内置
+# Nemotron Bolt / Nemotron Super 3.5 VL 支持；模型 GGUFs 由用户自行下载到
+# ComfyUI/models/LLM/Nemotron/。本管理器自动发现 llama-server.exe 与模型文件，
+# 在 127.0.0.1:8085 启动 OpenAI 兼容服务。
+# ---------------------------------------------------------------------------
+class NemotronManager:
+    """Auto-discover llama-server.exe + Nemotron GGUF model, start it on
+    127.0.0.1:8085 and health-check /v1/models. OpenAI-compatible protocol,
+    same as Strata / NInfer — any BSAI node can route to it."""
+
+    _lock = threading.Lock()
+    _proc = None
+    _detected_engine = None
+    _detected_model = None
+    _detected_mmproj = None
+    _model_ids = []
+    _active_model_path = None
+
+    # ---------- discovery ----------
+    @classmethod
+    def llama_dir(cls):
+        """Directory that contains llama-server.exe (bundled or next to models)."""
+        bundled = os.path.join(_PLUGIN_DIR, "Nemotron", "llama.cpp")
+        if os.path.isdir(bundled):
+            return bundled
+        model_side = os.path.join(NEMOTRON_MODEL_DIR, "llama.cpp")
+        if os.path.isdir(model_side):
+            return model_side
+        return bundled
+
+    @classmethod
+    def find_engine(cls):
+        """Return the llama-server.exe path, or None."""
+        if cls._detected_engine:
+            return cls._detected_engine
+        exe = os.path.join(cls.llama_dir(), "llama-server.exe")
+        if os.path.exists(exe):
+            cls._detected_engine = exe
+            return exe
+        return None
+
+    @classmethod
+    def list_models(cls):
+        """Return [(display_rel_path, absolute_path, kind), ...] for every
+        *.gguf under models/LLM/Nemotron. kind: 'model' or 'mmproj'."""
+        out = []
+        if not os.path.isdir(NEMOTRON_MODEL_DIR):
+            return out
+        for root, _dirs, files in os.walk(NEMOTRON_MODEL_DIR):
+            for f in sorted(files):
+                if not f.lower().endswith(".gguf"):
+                    continue
+                low = f.lower()
+                abs_p = os.path.join(root, f)
+                rel = os.path.relpath(abs_p, NEMOTRON_MODEL_DIR).replace("\\", "/")
+                if "mmproj" in low:
+                    out.append((rel, abs_p, "mmproj"))
+                else:
+                    out.append((rel, abs_p, "model"))
+        return out
+
+    @classmethod
+    def find_model(cls):
+        """Return the first non-mmproj GGUF (the main model), or None."""
+        if cls._detected_model:
+            return cls._detected_model
+        for rel, abs_p, kind in cls.list_models():
+            if kind == "model":
+                cls._detected_model = abs_p
+                return abs_p
+        return None
+
+    @classmethod
+    def find_mmproj(cls):
+        """Return the mmproj-*.gguf vision projector, or None."""
+        if cls._detected_mmproj:
+            return cls._detected_mmproj
+        for rel, abs_p, kind in cls.list_models():
+            if kind == "mmproj":
+                cls._detected_mmproj = abs_p
+                return abs_p
+        return None
+
+    # ---------- health ----------
+    @classmethod
+    def health(cls, timeout=1.5):
+        url = f"http://{NEMOTRON_HOST}:{NEMOTRON_PORT}/v1/models"
+        try:
+            status, body = _blocking_get_json(url, timeout=timeout)
+            data = json.loads(body)
+            cls._model_ids = [m.get("id", "?") for m in data.get("data", [])]
+            return {"ok": True, "models": cls._model_ids}
+        except Exception as e:
+            return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+    @classmethod
+    def models(cls):
+        """Return model ids served by the (running) Nemotron server."""
+        h = cls.health(timeout=1.0)
+        return h.get("models") or cls._model_ids
+
+    @classmethod
+    def base_url(cls):
+        return NEMOTRON_BASE_URL
+
+    @classmethod
+    def resolve_model(cls, model_path):
+        """Accept a display rel path or absolute path; return absolute path."""
+        if not model_path:
+            return cls.find_model()
+        p = str(model_path).replace("/", os.sep)
+        if os.path.isabs(p):
+            return p if os.path.exists(p) else None
+        cand = os.path.join(NEMOTRON_MODEL_DIR, p)
+        return cand if os.path.exists(cand) else None
+
+    # ---------- ensure running (auto-start + wait) ----------
+    @classmethod
+    def ensure_running(cls, wait_timeout=300.0, poll_interval=2.0, model_path=None):
+        """Block until the Nemotron llama.cpp server is reachable on 8085;
+        spawn llama-server.exe if not running (auto-detect model + mmproj).
+        model_path: optional rel/abs GGUF path; switching restarts the server."""
+        target = cls.resolve_model(model_path)
+        if target is None:
+            target = cls.find_model()
+        # If already serving the requested model, done.
+        _h = cls.health(timeout=1.0)
+        if (cls._proc is not None and cls._proc.poll() is None
+                and cls._active_model_path == target
+                and _h.get("ok") and _h.get("models")):
+            return True, f"already_running ({os.path.basename(target or '?')})"
+        with cls._lock:
+            _h2 = cls.health(timeout=1.0)
+            if (cls._proc is not None and cls._proc.poll() is None
+                    and cls._active_model_path == target
+                    and _h2.get("ok") and _h2.get("models")):
+                return True, f"already_running ({os.path.basename(target or '?')})"
+            engine = cls.find_engine()
+            if not engine:
+                return False, ("llama-server.exe 未找到。请把 llama.cpp 运行时放入 "
+                               "BSAI-LLM-Strata/Nemotron/llama.cpp/（或 models/LLM/Nemotron/llama.cpp/）。")
+            model = target or cls.find_model()
+            if not model:
+                return False, ("未找到 Nemotron GGUF 模型。请把模型下载到 "
+                               "ComfyUI/models/LLM/Nemotron/（例如 NVIDIA-Nemotron-3.5-Bolt-74B-A9B-24GB.gguf）。")
+            mmproj = cls.find_mmproj()
+            # Switching model / restart: stop the current server first.
+            if cls._proc is not None and cls._proc.poll() is None:
+                if cls._active_model_path != model:
+                    print(f"[BSAI-LLM-Strata] Nemotron 切换模型: "
+                          f"{os.path.basename(cls._active_model_path or '?')} -> {os.path.basename(model)}")
+                    cls._stop()
+                    time.sleep(2)
+            command = [
+                engine,
+                "-m", model,
+                "--host", NEMOTRON_HOST,
+                "--port", str(NEMOTRON_PORT),
+                "-c", str(NEMOTRON_DEFAULT_CONTEXT),
+                "-ngl", "99",
+                # Flash Attention：RTX 50 系（Blackwell）上自动选择最快实现
+                "-fa", "on",
+                # KV 缓存 8bit 量化：KV 显存减半、带宽压力大降，提速最明显
+                "-ctk", "q8_0",
+                "-ctv", "q8_0",
+                # 更大的批/微批大小加速 prompt 预填充阶段
+                "-b", "4096",
+                "-ub", "2048",
+                "--jinja",
+                "--parallel", "1",
+                "--alias", NEMOTRON_DEFAULT_ALIAS,
+            ]
+            if mmproj:
+                command += ["--mmproj", mmproj]
+            cls._active_model_path = model
+            env = os.environ.copy()
+            env["PATH"] = (os.path.dirname(engine) + os.pathsep + env.get("PATH", ""))
+            log_path = os.path.join(_PLUGIN_DIR, "nemotron-startup.log")
+            try:
+                with open(log_path, "a", encoding="utf-8") as lf:
+                    lf.write(f"\n--- {time.strftime('%Y-%m-%d %H:%M:%S')} BSAI Nemotron start @{NEMOTRON_PORT} "
+                             f"model={os.path.basename(model)} "
+                             f"mmproj={os.path.basename(mmproj) if mmproj else 'none'} ---\n")
+                    cls._proc = subprocess.Popen(command, cwd=os.path.dirname(engine), env=env,
+                                                 stdout=lf, stderr=subprocess.STDOUT)
+            except Exception as e:
+                return False, f"启动 llama-server 失败: {type(e).__name__}: {e}"
+            deadline = time.time() + wait_timeout
+            while time.time() < deadline:
+                time.sleep(poll_interval)
+                h = cls.health(timeout=2.0)
+                if h.get("ok") and h.get("models"):
+                    print(f"[BSAI-LLM-Strata] Nemotron 引擎就绪 @{NEMOTRON_PORT}: {h.get('models')}")
+                    return True, f"started_and_ready @{NEMOTRON_PORT}"
+                if cls._proc.poll() is not None:
+                    try:
+                        tail = open(log_path, encoding="utf-8", errors="replace").read().splitlines()[-15:]
+                    except Exception:
+                        tail = []
+                    return False, "llama-server 进程已退出。引擎日志:\n" + "\n".join(tail)
+            return False, f"等待 Nemotron 启动超时({wait_timeout:.0f}s)。请查看 nemotron-startup.log。"
+
+    @classmethod
+    def _stop(cls, timeout=15.0):
+        """Terminate the running llama-server process."""
+        proc = cls._proc
+        if proc is not None and proc.poll() is None:
+            try:
+                proc.terminate()
+                try:
+                    proc.wait(timeout)
+                except Exception:
+                    pass
+            except Exception:
+                pass
+            if proc.poll() is None:
+                try:
+                    subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                                   capture_output=True, timeout=10)
+                except Exception:
+                    pass
+        cls._proc = None
+        cls._model_ids = []
+
+    @classmethod
+    def stop(cls):
+        cls._stop()
+        return {"ok": True}
+
+    # ---------- HTTP call ----------
+    @staticmethod
+    def chat(messages, model=None, max_tokens=4096, temperature=0.7, timeout=600):
+        """POST /v1/chat/completions to the local Nemotron server (OpenAI-compatible)."""
+        if not model:
+            mids = NemotronManager.models()
+            model = mids[0] if mids else NEMOTRON_DEFAULT_ALIAS
+        url = f"{NEMOTRON_BASE_URL}/chat/completions"
+        body = json.dumps({
+            "model": model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "stream": False,
+        }).encode("utf-8")
+        status, raw = _blocking_post_json(url, body, timeout=timeout)
+        if status >= 400:
+            raise RuntimeError(f"Nemotron HTTP {status}: {raw[:300]}")
+        return json.loads(raw)
+
+
+# ---------------------------------------------------------------------------
 # ComfyUI nodes
 # ---------------------------------------------------------------------------
 class BSAI_LLM_Call:
-    """One-shot chat completion via local Strata."""
+    """One-shot chat completion via local Strata or NInfer."""
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
+                "engine": (["BSAI Strata (Qwen3.8-Flash-Next @8080)",
+                            "BSAI Nemotron (llama.cpp @8085)",
+                            "BSAI NInfer (本地反推 @8081)"],
+                           {"default": "BSAI Strata (Qwen3.8-Flash-Next @8080)",
+                            "tooltip": "Engine: Strata (125B MoE, GGUF) / Nemotron (llama.cpp, 74B-A9B) / NInfer (.ninfer vision model)"}),
                 "prompt": ("STRING", {"multiline": True, "dynamicPrompts": False,
                                       "tooltip": "User prompt / 用户提示词"}),
                 "system": ("STRING", {"multiline": True, "default": "You are a helpful assistant.",
                                      "tooltip": "System prompt / 系统提示词"}),
                 "quant": (list(QUANT_OPTIONS.keys()), {"default": DEFAULT_QUANT_LABEL,
-                           "tooltip": "Which Strata quant to auto-start (if not running)"}),
+                           "tooltip": "Strata engine only: which quant to auto-start (if not running)"}),
                 "max_tokens": ("INT", {"default": 1024, "min": 64, "max": 32768, "step": 64}),
                 "temperature": ("FLOAT", {"default": 0.7, "min": 0.0, "max": 2.0, "step": 0.05}),
             },
             "optional": {
-                "model": ("STRING", {"default": DEFAULT_STRATA_MODEL,
-                                    "tooltip": "Model name served by Strata"}),
+                "model": ("STRING", {"default": "",
+                                    "tooltip": "Optional model name override (default: server-reported id)"}),
             },
         }
 
@@ -974,33 +1607,58 @@ class BSAI_LLM_Call:
     RETURN_NAMES = ("text",)
     FUNCTION = "execute"
     CATEGORY = "BSAI/LLM"
-    DESCRIPTION = "Call local Qwen3.8-Flash-Next via Strata (OpenAI-compatible)"
+    DESCRIPTION = "Call local Qwen3.8-Flash-Next via Strata, or local NInfer (OpenAI-compatible)"
 
-    def execute(self, prompt, system, quant, max_tokens, temperature, model=DEFAULT_STRATA_MODEL):
+    def execute(self, engine, prompt, system, quant, max_tokens, temperature, model=""):
         msgs = [
             {"role": "system", "content": system},
             {"role": "user", "content": prompt},
         ]
+        if str(engine).startswith("BSAI Strata"):
+            tag = "Strata"
+        elif str(engine).startswith("BSAI Nemotron"):
+            tag = "Nemotron"
+        else:
+            tag = "NInfer"
         try:
-            ok, msg = StrataManager.ensure_running(quant_label=quant)
-            if not ok:
-                return (f"[BSAI-LLM-Strata] Strata 启动失败: {msg}",)
-            r = StrataManager.chat(msgs, model=model, max_tokens=max_tokens,
-                                   temperature=temperature)
+            if tag == "Strata":
+                ok, msg = StrataManager.ensure_running(quant_label=quant)
+                if not ok:
+                    return (f"[BSAI-LLM-Strata] Strata 启动失败: {msg}",)
+                mid = model or DEFAULT_STRATA_MODEL
+                r = StrataManager.chat(msgs, model=mid, max_tokens=max_tokens,
+                                       temperature=temperature)
+            elif tag == "Nemotron":
+                ok, msg = NemotronManager.ensure_running()
+                if not ok:
+                    return (f"[BSAI-LLM-Strata] Nemotron 启动失败: {msg}",)
+                r = NemotronManager.chat(msgs, model=model or None, max_tokens=max_tokens,
+                                         temperature=temperature)
+            else:
+                ok, msg = NInferManager.ensure_running()
+                if not ok:
+                    return (f"[BSAI-LLM-Strata] NInfer 启动失败: {msg}",)
+                r = NInferManager.chat(msgs, model=model or None, max_tokens=max_tokens,
+                                       temperature=temperature)
             text = r["choices"][0]["message"]["content"]
         except Exception as e:
-            text = f"[BSAI-LLM-Strata ERROR] {type(e).__name__}: {e}\n" \
-                   f"Is Strata running at http://127.0.0.1:8080? Check /bsai/strata/health."
+            text = f"[BSAI-LLM-Strata {tag} ERROR] {type(e).__name__}: {e}\n" \
+                   f"Is the engine running? Strata: /bsai/strata/health, Nemotron: /bsai/nemotron/health, NInfer: /bsai/ninfer/health."
         return (text,)
 
 
 class BSAI_LLM_VisionDescribe:
-    """Image -> text description. Sends base64 data URL to Strata's mmproj."""
+    """Image -> text description. Sends base64 data URL to Strata mmproj or NInfer vision."""
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
+                "engine": (["BSAI Strata (Qwen3.8-Flash-Next @8080)",
+                            "BSAI Nemotron (llama.cpp @8085)",
+                            "BSAI NInfer (本地反推 @8081)"],
+                           {"default": "BSAI Strata (Qwen3.8-Flash-Next @8080)",
+                            "tooltip": "Engine: Strata (mmproj) / Nemotron (llama.cpp --mmproj) / NInfer (--vision)"}),
                 "image": ("IMAGE",),
                 "prompt": ("STRING", {"multiline": True, "default": "Describe this image in detail, in Chinese.",
                                      "tooltip": "Question/description prompt"}),
@@ -1012,9 +1670,9 @@ class BSAI_LLM_VisionDescribe:
     RETURN_NAMES = ("description",)
     FUNCTION = "execute"
     CATEGORY = "BSAI/LLM"
-    DESCRIPTION = "Vision: ask Qwen3.8-Flash-Next about an input image (uses mmproj)"
+    DESCRIPTION = "Vision: ask Qwen3.8-Flash-Next / NInfer about an input image"
 
-    def execute(self, image, prompt, max_tokens):
+    def execute(self, engine, image, prompt, max_tokens):
         import base64
         import io
         import numpy as np
@@ -1035,21 +1693,40 @@ class BSAI_LLM_VisionDescribe:
                 {"type": "image_url", "image_url": {"url": data_url}},
             ],
         }]
+        if str(engine).startswith("BSAI Strata"):
+            tag = "Strata"
+        elif str(engine).startswith("BSAI Nemotron"):
+            tag = "Nemotron"
+        else:
+            tag = "NInfer"
         try:
-            r = StrataManager.chat(msgs, max_tokens=max_tokens, temperature=0.2)
+            if tag == "Strata":
+                StrataManager.ensure_running()
+                r = StrataManager.chat(msgs, max_tokens=max_tokens, temperature=0.2)
+            elif tag == "Nemotron":
+                NemotronManager.ensure_running()
+                r = NemotronManager.chat(msgs, max_tokens=max_tokens, temperature=0.2)
+            else:
+                NInferManager.ensure_running()
+                r = NInferManager.chat(msgs, max_tokens=max_tokens, temperature=0.2)
             text = r["choices"][0]["message"]["content"]
         except Exception as e:
-            text = f"[BSAI-LLM-Strata Vision ERROR] {type(e).__name__}: {e}"
+            text = f"[BSAI-LLM-Strata {tag} Vision ERROR] {type(e).__name__}: {e}"
         return (text,)
 
 
 class BSAI_LLM_PromptEnhance:
-    """Wrap a rough prompt into a richer cinematic prompt via local LLM."""
+    """Wrap a rough prompt into a richer cinematic prompt via local Strata or NInfer."""
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
+                "engine": (["BSAI Strata (Qwen3.8-Flash-Next @8080)",
+                            "BSAI Nemotron (llama.cpp @8085)",
+                            "BSAI NInfer (本地反推 @8081)"],
+                           {"default": "BSAI Strata (Qwen3.8-Flash-Next @8080)",
+                            "tooltip": "Engine: Strata / Nemotron / NInfer"}),
                 "raw_prompt": ("STRING", {"multiline": True, "dynamicPrompts": False}),
                 "style": (["cinematic", "anime", "photoreal", "advertisement", "documentary"],),
                 "language": (["zh", "en", "zh+en"],),
@@ -1062,7 +1739,7 @@ class BSAI_LLM_PromptEnhance:
     FUNCTION = "execute"
     CATEGORY = "BSAI/LLM"
 
-    def execute(self, raw_prompt, style, language, max_tokens):
+    def execute(self, engine, raw_prompt, style, language, max_tokens):
         sys = (
             "You are a master visual prompt engineer for video generation. "
             "Rewrite the user's rough idea into a dense, concrete, cinematic prompt. "
@@ -1070,15 +1747,37 @@ class BSAI_LLM_PromptEnhance:
             "Do not explain, output only the rewritten prompt."
         )
         user = f"Style: {style}. Language: {language}.\nRough idea: {raw_prompt}"
+        if str(engine).startswith("BSAI Strata"):
+            tag = "Strata"
+        elif str(engine).startswith("BSAI Nemotron"):
+            tag = "Nemotron"
+        else:
+            tag = "NInfer"
         try:
-            r = StrataManager.chat(
-                [{"role": "system", "content": sys},
-                 {"role": "user", "content": user}],
-                max_tokens=max_tokens, temperature=0.8,
-            )
+            if tag == "Strata":
+                StrataManager.ensure_running()
+                r = StrataManager.chat(
+                    [{"role": "system", "content": sys},
+                     {"role": "user", "content": user}],
+                    max_tokens=max_tokens, temperature=0.8,
+                )
+            elif tag == "Nemotron":
+                NemotronManager.ensure_running()
+                r = NemotronManager.chat(
+                    [{"role": "system", "content": sys},
+                     {"role": "user", "content": user}],
+                    max_tokens=max_tokens, temperature=0.8,
+                )
+            else:
+                NInferManager.ensure_running()
+                r = NInferManager.chat(
+                    [{"role": "system", "content": sys},
+                     {"role": "user", "content": user}],
+                    max_tokens=max_tokens, temperature=0.8,
+                )
             text = r["choices"][0]["message"]["content"].strip()
         except Exception as e:
-            text = f"[BSAI-LLM-Strata Enhance ERROR] {type(e).__name__}: {e}"
+            text = f"[BSAI-LLM-Strata {tag} Enhance ERROR] {type(e).__name__}: {e}"
         return (text,)
 
 
@@ -1129,11 +1828,70 @@ async def _web_setup(request):
     return web.json_response(r)
 
 
+async def _web_ninfer_health(request):
+    from aiohttp import web
+    h = NInferManager.health()
+    return web.json_response({
+        "ok": h.get("ok"),
+        "detail": h,
+        "endpoint": NInferManager.base_url(),
+        "engine": NInferManager.find_engine(),
+        "model": NInferManager.find_model(),
+    })
+
+
+async def _web_ninfer_start(request):
+    from aiohttp import web
+    ok, msg = NInferManager.ensure_running()
+    return web.json_response({"ok": ok, "message": msg, "endpoint": NINFER_BASE_URL})
+
+
+async def _web_ninfer_models(request):
+    from aiohttp import web
+    return web.json_response({"models": NInferManager.models()})
+
+
+async def _web_nemotron_health(request):
+    from aiohttp import web
+    h = NemotronManager.health()
+    return web.json_response({
+        "ok": h.get("ok"),
+        "detail": h,
+        "endpoint": NemotronManager.base_url(),
+        "engine": NemotronManager.find_engine(),
+        "model": NemotronManager.find_model(),
+        "mmproj": NemotronManager.find_mmproj(),
+    })
+
+
+async def _web_nemotron_start(request):
+    from aiohttp import web
+    ok, msg = NemotronManager.ensure_running()
+    return web.json_response({"ok": ok, "message": msg, "endpoint": NEMOTRON_BASE_URL})
+
+
+async def _web_nemotron_models(request):
+    from aiohttp import web
+    return web.json_response({"models": NemotronManager.models()})
+
+
+async def _web_nemotron_stop(request):
+    from aiohttp import web
+    return web.json_response(NemotronManager.stop())
+
+
 def setup_web_routes(app):
     app.router.add_get("/bsai/strata/health", _web_health)
     app.router.add_get("/bsai/strata/start", _web_start)
     app.router.add_get("/bsai/strata/set_quant", _web_set_quant)
     app.router.add_get("/bsai/strata/setup", _web_setup)
+    app.router.add_get("/bsai/ninfer/health", _web_ninfer_health)
+    app.router.add_get("/bsai/ninfer/start", _web_ninfer_start)
+    app.router.add_get("/bsai/ninfer/models", _web_ninfer_models)
+    app.router.add_get("/bsai/nemotron/health", _web_nemotron_health)
+    app.router.add_get("/bsai/nemotron/start", _web_nemotron_start)
+    app.router.add_get("/bsai/nemotron/models", _web_nemotron_models)
+    app.router.add_get("/bsai/nemotron/stop", _web_nemotron_stop)
 
 
 # ---------------------------------------------------------------------------
@@ -1152,4 +1910,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 }
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "StrataManager",
-           "setup_web_routes", "DEFAULT_STRATA_BASE_URL", "DEFAULT_STRATA_MODEL"]
+           "NInferManager", "NemotronManager", "setup_web_routes",
+           "DEFAULT_STRATA_BASE_URL", "DEFAULT_STRATA_MODEL", "NINFER_BASE_URL",
+           "NINFER_PORT", "NEMOTRON_BASE_URL", "NEMOTRON_PORT"]

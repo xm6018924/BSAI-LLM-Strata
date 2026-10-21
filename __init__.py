@@ -3,8 +3,10 @@ from .strata_manager import (
     NODE_CLASS_MAPPINGS,
     NODE_DISPLAY_NAME_MAPPINGS,
     StrataManager,
+    NemotronManager,
     DEFAULT_STRATA_BASE_URL,
     DEFAULT_STRATA_MODEL,
+    NEMOTRON_BASE_URL,
 )
 
 WEB_DIRECTORY = "./web"
@@ -37,9 +39,34 @@ def _register_routes():
             script = request.query.get("script")
             return web.json_response(StrataManager.start(run_script=script))
 
+        async def nemotron_health(request):
+            h = NemotronManager.health()
+            return web.json_response({
+                "ok": h.get("ok"),
+                "detail": h,
+                "endpoint": NEMOTRON_BASE_URL,
+                "engine": NemotronManager.find_engine(),
+                "model": NemotronManager.find_model(),
+                "mmproj": NemotronManager.find_mmproj(),
+            })
+
+        async def nemotron_start(request):
+            ok, msg = NemotronManager.ensure_running()
+            return web.json_response({"ok": ok, "message": msg, "endpoint": NEMOTRON_BASE_URL})
+
+        async def nemotron_models(request):
+            return web.json_response({"models": NemotronManager.models()})
+
+        async def nemotron_stop(request):
+            return web.json_response(NemotronManager.stop())
+
         for method, path, handler in [
             ("GET", "/bsai/strata/health", health),
             ("GET", "/bsai/strata/start", start),
+            ("GET", "/bsai/nemotron/health", nemotron_health),
+            ("GET", "/bsai/nemotron/start", nemotron_start),
+            ("GET", "/bsai/nemotron/models", nemotron_models),
+            ("GET", "/bsai/nemotron/stop", nemotron_stop),
         ]:
             try:
                 existing = [r for r in routes
@@ -48,7 +75,7 @@ def _register_routes():
                     routes.route(method, path)(handler)
             except Exception:
                 pass
-        log.info("[BSAI-LLM-Strata] routes mounted: /bsai/strata/health, /bsai/strata/start")
+        log.info("[BSAI-LLM-Strata] routes mounted: /bsai/strata/*, /bsai/nemotron/*")
     except Exception as e:
         log.warning("[BSAI-LLM-Strata] route mount deferred: %s", e)
 
@@ -204,24 +231,13 @@ def _auto_download_engine_async():
                 except Exception as e:
                     log.debug(f"[BSAI-LLM-Strata] Web UI patch skipped: {e}")
 
-                # Step 4: auto-start Strata service in background
-                import socket as _socket
-                s = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
-                s.settimeout(2)
-                result = s.connect_ex(("127.0.0.1", 8080))
-                s.close()
-                if result != 0:
-                    log.info("[BSAI-LLM-Strata] Strata service not running, auto-starting in background…")
-                    try:
-                        start_result = StrataManager.start()
-                        if start_result.get("ok"):
-                            log.info(f"[BSAI-LLM-Strata] Strata service started (pid={start_result.get('pid')})")
-                        else:
-                            log.warning(f"[BSAI-LLM-Strata] Strata auto-start failed: {start_result}")
-                    except Exception as e:
-                        log.warning(f"[BSAI-LLM-Strata] Strata auto-start error: {e}")
-                else:
-                    log.info("[BSAI-LLM-Strata] Strata service already running.")
+                # Step 4: 不在 ComfyUI 启动时拉起 Strata（按需启动）。
+                # 加载 125B MoE 需要 1-3 分钟且占用大量显存/内存，开机自启会拖慢启动。
+                # 引擎改为首次被工作流用到时由节点执行路径自动拉起：
+                #   - BSAI-LLM-Strata 节点 → StrataManager.ensure_running()
+                #   - BSAI-FLUX3-ComfyUI 增强器 → ensure_strata()
+                #   - 也可手动运行「启动BSAI_Strata服务.bat」或前端按钮
+                log.info("[BSAI-LLM-Strata] Install check done. Strata engine will start on demand (first workflow use).")
             except Exception as e:
                 log.warning(f"[BSAI-LLM-Strata] Auto-download error: {e}")
         t = threading.Thread(target=_worker, daemon=True)
@@ -234,4 +250,5 @@ _auto_download_engine_async()
 
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "WEB_DIRECTORY",
-           "StrataManager", "DEFAULT_STRATA_BASE_URL", "DEFAULT_STRATA_MODEL"]
+           "StrataManager", "NemotronManager", "DEFAULT_STRATA_BASE_URL",
+           "DEFAULT_STRATA_MODEL", "NEMOTRON_BASE_URL"]

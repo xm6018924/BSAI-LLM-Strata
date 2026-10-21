@@ -319,6 +319,36 @@ This plugin is the **central LLM backend** for the entire BSAI ComfyUI plugin su
 
 ---
 
+## Nemotron Engine / Nemotron 引擎（新增）
+
+本插件新增 **NemotronManager**：以 llama.cpp 为引擎，在 `127.0.0.1:8085` 提供
+OpenAI 兼容 API，与 Strata / NInfer 并列，供所有 BSAI 插件选择。
+
+- **引擎**: llama.cpp (已随插件部署，CUDA 13.4 版，另附 Vulkan 备用版于 `Nemotron/llama.cpp/vulkan/`)
+- **模型**: 用户自行下载到 `ComfyUI/models/LLM/Nemotron/`：
+  - 主模型：`NVIDIA-Nemotron-3.5-Bolt-74B-A9B-24GB.gguf`
+  - 视觉投影：`mmproj-NVIDIA-Nemotron-3.5-Bolt-74B-A9B-24GB.gguf`
+- **端口**: `8085`（避开 Strata 8080 / NInfer 8081）
+- **自动启动**: 任一 BSAI 节点选择 `BSAI Nemotron` 后端时，`NemotronManager.ensure_running()` 会自动启动 llama-server 并等待就绪
+
+### 已同步 Nemotron 引擎选项的 BSAI 插件
+
+| Plugin / 插件 | 选项名称 |
+|---|---|
+| **BSAI-LLM-Strata** (内置) | `BSAI_LLM_Call` / `BSAI_LLM_VisionDescribe` / `BSAI_LLM_PromptEnhance` → engine = `BSAI Nemotron (llama.cpp @8085)` |
+| **BSAI-Qwen-Prompt-Enhancer** | Backend = `BSAI Nemotron (llama.cpp @8085)` |
+| **BSAI-NPU-Service** | Backend = `BSAI Nemotron (llama.cpp @8085)` |
+| **BSAI-MiniMAX-H3-Prompt** | Backend = `BSAI Nemotron (llama.cpp @8085)`（H3 ModelLoader 与直接模式自动回退链均已加入） |
+| **BSAI_ComfyUI_Nodes** | `BSAI_QwenModelLoader` / `BSAI_MultiImageVideoReverse` → `BSAI Nemotron HTTP (llama.cpp @127.0.0.1:8085)` |
+| **BSAI-ComfyUI-Sol-H3** | `PromptProvider` → `provider_mode = bsai_nemotron` |
+| **BSAI-FLUX3-ComfyUI** | `BSAI_FLUX3_PromptEnhancer` → engine = `nemotron`（auto 模式也会按 Strata→Nemotron→规则 顺序回退） |
+
+### 手动启动（可选）
+
+双击项目根目录 `启动BSAI_Nemotron服务.bat`，或由节点自动启动。
+
+---
+
 ## API Contract / API 契约
 
 All BSAI nodes call this endpoint. You can also call it from any OpenAI-compatible client (ChatBox, NextChat, WorkBuddy, etc.):
@@ -368,6 +398,10 @@ When ComfyUI is running, these endpoints are available:
 | `GET /bsai/strata/health` | Health check: `{ok, models, install_dir, run_scripts, endpoint}` |
 | `GET /bsai/strata/start` | Spawn first `run-*.bat`; returns `{ok, pid}` |
 | `GET /bsai/strata/start?script=run-q2_0.bat` | Spawn a specific quant |
+| `GET /bsai/nemotron/health` | Nemotron health: `{ok, detail, engine, model, mmproj, endpoint}` |
+| `GET /bsai/nemotron/start` | Auto-start Nemotron (llama.cpp) and wait until ready |
+| `GET /bsai/nemotron/models` | Models served by the running Nemotron server |
+| `GET /bsai/nemotron/stop` | Stop the running Nemotron server |
 
 ---
 
