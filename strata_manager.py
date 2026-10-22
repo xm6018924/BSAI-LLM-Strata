@@ -659,11 +659,161 @@ if errorlevel 1 pause
         except Exception as e:
             return {"ok": False, "error": f"{type(e).__name__}: {e}"}
 
-    # ---------- ensure running (auto-start + wait) ----------
+    # ---------- BSAI_Strata服务.bat launcher (regenerated every ComfyUI start) ----------
+    _LAUNCHER_BAT_NAME = "BSAI_Strata服务.bat"
+
+    # 不同整合包的 Python 相对候选（按优先级）
+    _PY_CANDIDATES_REL = (
+        r"python_embeded_cuda\python.exe",   # BSAI Pro 新整合包（G 盘）
+        r"python\python.exe",                # 绘世/BSAI 旧整合包（C 盘）
+        r"python_embeded\python.exe",        # 标准嵌入式整合包
+    )
+
+    @classmethod
+    def _package_root(cls):
+        """ComfyUI 整合包根目录（绘世启动器.exe 同级）。
+
+        custom_nodes 的上级是 ComfyUI，再上一级即整合包根。
+        """
+        try:
+            cand = os.path.dirname(os.path.dirname(_CUSTOM_NODES_ROOT))
+            if os.path.isdir(cand) and (
+                os.path.isfile(os.path.join(cand, "绘世启动器.exe"))
+                or os.path.isdir(os.path.join(cand, "ComfyUI", "custom_nodes"))
+            ):
+                return cand
+        except Exception:
+            pass
+        return None
+
+    @classmethod
+    def _find_python_rel(cls, root):
+        """在整合包根内探测可用的 python.exe，返回相对 root 的路径；找不到返回 None。
+
+        兼容不同环境包：python_embeded_cuda / python / python_embeded / python_envs 多环境目录。
+        """
+        for rel in cls._PY_CANDIDATES_REL:
+            if os.path.isfile(os.path.join(root, rel)):
+                return rel
+        envs = os.path.join(root, "python_envs")
+        if os.path.isdir(envs):
+            try:
+                for d in sorted(os.listdir(envs)):
+                    p = os.path.join(envs, d, "Scripts", "python.exe")
+                    if os.path.isfile(p):
+                        return os.path.relpath(p, root)
+            except Exception:
+                pass
+        return None
+
+    @classmethod
+    def _pick_quant(cls, install):
+        """选择本机实际可用的 quant：优先 preferred/detect，但必须存在
+        strata-<quant>.json；否则回退到 install 下已存在的 strata-*.json。
+
+        Returns (quant_upper, quant_lower) e.g. ("IQ3_S", "iq3_s").
+        """
+        label = cls.get_preferred_quant()
+        if label == "Auto (自动适配)":
+            label = cls.detect_best_quant()
+        pair = cls._QUANT_JSON_MAP.get(label)
+        if not pair:
+            pair = ("Q2_0", "Q2_0")
+        lower, upper = pair[0], pair[1]
+        if os.path.isfile(os.path.join(install, f"strata-{lower}.json")):
+            return upper, lower
+        # 现有 json 兜底（C 盘可能只有 IQ3_S）
+        try:
+            jsons = sorted(f for f in os.listdir(install) if f.startswith("strata-") and f.endswith(".json"))
+            for jn in jsons:
+                low = jn[len("strata-"):-len(".json")]
+                for (l2, u2) in cls._QUANT_JSON_MAP.values():
+                    if l2 == low:
+                        return u2, l2
+        except Exception:
+            pass
+        return upper, lower
+
+    @classmethod
+    def ensure_bsai_launcher(cls):
+        """每次 ComfyUI 启动时调用：在整合包根（绘世启动器.exe 旁）覆盖生成
+        BSAI_Strata服务.bat，内容全部为相对路径（基于 %~dp0），Python 与 quant
+        按本机环境包自动探测。
+
+        该启动器只等待用户双击运行；插件节点不再自动拉起 Strata。
+        """
+        try:
+            root = cls._package_root()
+            if not root:
+                print("[BSAI-LLM-Strata] 未定位整合包根目录，跳过启动器生成。")
+                return None
+            install = cls.find_install()
+            if not install:
+                print("[BSAI-LLM-Strata] Strata 运行时未安装，跳过启动器生成。")
+                return None
+            py_rel = cls._find_python_rel(root)
+            if not py_rel:
+                # 整合包内无 Python：回退到 PATH 中的 python 命令（非相对，极端情况）
+                py_rel = "python"
+                print("[BSAI-LLM-Strata] 整合包内未找到 python.exe，启动器将使用 PATH 中的 python 命令。")
+            quant_upper, quant_lower = cls._pick_quant(install)
+            # 确保 strata-<quant>.json 存在（双击 bat 时 model_manager 需要它）
+            json_path = os.path.join(install, f"strata-{quant_lower}.json")
+            if not os.path.isfile(json_path):
+                label = next((k for k, v in cls._QUANT_JSON_MAP.items() if v[1] == quant_upper), None)
+                if label:
+                    cls._refresh_json_config(label)
+            bat = os.path.join(root, cls._LAUNCHER_BAT_NAME)
+            template = (
+                "@echo off\r\n"
+                "chcp 65001 >nul\r\n"
+                "title BSAI Strata 服务 - 双击启动\r\n"
+                "echo ======================================\r\n"
+                "echo    BSAI Strata LLM Service\r\n"
+                "echo ======================================\r\n"
+                "echo.\r\n"
+                "\r\n"
+                "set \"PKG=%~dp0\"\r\n"
+                "set \"PY=%PKG%{PY}\"\r\n"
+                "set \"STRATA=%PKG%{STRATA}\"\r\n"
+                "\r\n"
+                "if not exist \"%PY%\" (\r\n"
+                "    echo [BSAI] 未找到 Python: %PY%\r\n"
+                "    pause\r\n"
+                "    exit /b 1\r\n"
+                ")\r\n"
+                "if not exist \"%STRATA%\" (\r\n"
+                "    echo [BSAI] 未找到 Strata 运行时: %STRATA%\r\n"
+                "    echo [BSAI] 请先完成 Strata 引擎安装\r\n"
+                "    pause\r\n"
+                "    exit /b 1\r\n"
+                ")\r\n"
+                "\r\n"
+                "cd /d \"%STRATA%\"\r\n"
+                "echo [BSAI] 正在启动 Strata 服务 ({QUANT}) ...\r\n"
+                "echo [BSAI] 首次加载 125B 模型可能需要 1-3 分钟，请耐心等待\r\n"
+                "\"%PY%\" \"bsai_model_manager.py\" \"{QUANT}\"\r\n"
+                "if errorlevel 1 (\r\n"
+                "    echo.\r\n"
+                "    echo [BSAI] Strata 服务启动失败，请查看上方日志\r\n"
+                "    pause\r\n"
+                ")\r\n"
+            ).format(PY=py_rel, STRATA=os.path.relpath(install, root), QUANT=quant_upper)
+            # UTF-8 编码 + bat 首行 chcp 65001：保证中文提示不乱码
+            with open(bat, "w", encoding="utf-8", errors="replace") as f:
+                f.write(template)
+            print(f"[BSAI-LLM-Strata] 已生成启动器 {bat}（Python={py_rel}, quant={quant_upper}；双击启动 Strata 服务；未启动则节点不自动拉起）")
+            return bat
+        except Exception as e:
+            print(f"[BSAI-LLM-Strata] 生成 BSAI_Strata服务.bat 失败: {e}")
+            return None
+
+    # ---------- ensure running (manual launcher mode: never auto-spawn) ----------
     @classmethod
     def ensure_running(cls, wait_timeout=240.0, poll_interval=3.0, quant_label=None):
-        """Block until Strata is reachable. If not running, spawn the run-*.bat
-        for the given quant_label (or the user's preferred quant).
+        """Block until Strata is reachable. If not running, refresh the json config
+        and return a pointer to the BSAI_Strata服务.bat launcher — the engine is
+        NEVER auto-spawned; it starts only when the user double-clicks the bat.
 
         Returns (ok, message). Called by any BSAI node before hitting /v1.
         """
@@ -671,41 +821,19 @@ if errorlevel 1 pause
         if h.get("ok"):
             return True, "already_running"
 
-        # Not up — spawn it
+        # Not up — keep config fresh so the launcher can start immediately,
+        # then hand control to the user (manual launch only).
         label = quant_label or cls.get_preferred_quant()
         if label == "Auto (自动适配)":
             label = cls.detect_best_quant()
-        # Auto-generate json config with correct paths (fixes hardcoded paths on new machines)
         ok_gen, msg_gen = cls._refresh_json_config(label)
         if not ok_gen:
             print(f"[BSAI-LLM-Strata] Warning: json config refresh failed: {msg_gen}")
-        bat = cls._bat_for_quant(label)
-        print(f"[BSAI-LLM-Strata] 后端未运行，自动启动 Strata ({label})…")
-        start_r = cls.start(run_script=bat)
-        if not start_r.get("ok"):
-            return False, f"启动失败: {start_r.get('error')}"
-        if start_r.get("already_running"):
-            # health was racy; re-probe
-            pass
-
-        # Wait for model to load (125B MoE q2_0 takes 60~180s)
-        deadline = time.time() + wait_timeout
-        last_err = "?"
-        while time.time() < deadline:
-            time.sleep(poll_interval)
-            h = cls.health(timeout=2.0)
-            if h.get("ok"):
-                print(f"[BSAI-LLM-Strata] 后端已就绪: {h.get('models')}")
-                # Auto-open Web UI in browser
-                try:
-                    import webbrowser
-                    webbrowser.open("http://127.0.0.1:8080/")
-                    print("[BSAI-LLM-Strata] 已自动打开 Web UI: http://127.0.0.1:8080/")
-                except Exception as e:
-                    print(f"[BSAI-LLM-Strata] 自动打开浏览器失败: {e}")
-                return True, "started_and_ready"
-            last_err = h.get("error", "?")
-        return False, f"等待超时({wait_timeout:.0f}s): {last_err}"
+        launcher = os.path.join(cls._package_root() or "", cls._LAUNCHER_BAT_NAME)
+        if launcher and os.path.exists(launcher):
+            print(f"[BSAI-LLM-Strata] Strata 服务未运行——请双击启动器手动启动: {launcher}")
+            return False, f"Strata 服务未运行。请双击 {launcher} 启动，等待模型加载完成后再运行本节点。"
+        return False, "Strata 服务未运行，且未找到 BSAI_Strata服务.bat 启动器。请检查插件安装。"
 
     # ---------- spawn ----------
     @classmethod

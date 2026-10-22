@@ -215,29 +215,17 @@ def _auto_download_engine_async():
                                 f.write(js)
                             log.info("[BSAI-LLM-Strata] Patched app.js with video upload support.")
 
-                    # Create Strata launcher bat in ComfyUI root dir
-                    try:
-                        import folder_paths
-                        comfy_root = os.path.dirname(folder_paths.base_path) if hasattr(folder_paths, 'base_path') else os.path.dirname(os.path.dirname(install))
-                        bat_src = os.path.join(os.path.dirname(__file__), "web", "启动BSAI_Strata服务.bat")
-                        bat_dst = os.path.join(comfy_root, "启动BSAI_Strata服务.bat")
-                        if os.path.exists(bat_src) and not os.path.exists(bat_dst):
-                            import shutil
-                            shutil.copy2(bat_src, bat_dst)
-                            log.info(f"[BSAI-LLM-Strata] Created Strata launcher: {bat_dst}")
-                    except Exception as e:
-                        log.debug(f"[BSAI-LLM-Strata] Launcher bat creation skipped: {e}")
+                    # Strata launcher (BSAI_Strata服务.bat) is regenerated
+                    # synchronously at module load — see _generate_strata_launcher() below.
 
                 except Exception as e:
                     log.debug(f"[BSAI-LLM-Strata] Web UI patch skipped: {e}")
 
-                # Step 4: 不在 ComfyUI 启动时拉起 Strata（按需启动）。
+                # Step 4: 不在 ComfyUI 启动时拉起 Strata（手动启动器模式）。
                 # 加载 125B MoE 需要 1-3 分钟且占用大量显存/内存，开机自启会拖慢启动。
-                # 引擎改为首次被工作流用到时由节点执行路径自动拉起：
-                #   - BSAI-LLM-Strata 节点 → StrataManager.ensure_running()
-                #   - BSAI-FLUX3-ComfyUI 增强器 → ensure_strata()
-                #   - 也可手动运行「启动BSAI_Strata服务.bat」或前端按钮
-                log.info("[BSAI-LLM-Strata] Install check done. Strata engine will start on demand (first workflow use).")
+                # 引擎只由用户双击整合包根目录的「BSAI_Strata服务.bat」启动；
+                # 节点检测到服务未运行时只提示启动器位置，绝不自动拉起。
+                log.info("[BSAI-LLM-Strata] Install check done. Strata starts ONLY via BSAI_Strata服务.bat (double-click).")
             except Exception as e:
                 log.warning(f"[BSAI-LLM-Strata] Auto-download error: {e}")
         t = threading.Thread(target=_worker, daemon=True)
@@ -247,6 +235,20 @@ def _auto_download_engine_async():
 
 
 _auto_download_engine_async()
+
+
+def _generate_strata_launcher():
+    """每次 ComfyUI 启动（模块加载）同步生成 BSAI_Strata服务.bat：
+    放在整合包根目录（绘世启动器.exe 旁），全相对路径，双击手动启动。
+    """
+    try:
+        from .strata_manager import StrataManager
+        StrataManager.ensure_bsai_launcher()
+    except Exception as e:
+        log.warning(f"[BSAI-LLM-Strata] BSAI_Strata服务.bat generation skipped: {e}")
+
+
+_generate_strata_launcher()
 
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "WEB_DIRECTORY",
