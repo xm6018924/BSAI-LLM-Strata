@@ -125,25 +125,38 @@ def start_strata(model_name):
         print(f"[BSAI Manager] Started Strata with model: {model_name}")
         
         # Wait for engine to be ready
-        wait_for_engine()
+        wait_for_engine(model_name)
         
         # Only set current_model after engine is fully ready
         current_model = model_name
         print(f"[BSAI Manager] Model {model_name} is now active!")
 
 
-def wait_for_engine(timeout=1800):
-    """Wait for Strata engine to be ready - 30 min timeout for large models"""
+def wait_for_engine(timeout=1800, model_name=None):
+    """Wait for Strata engine to be ready, and verify the served model id
+    actually matches the requested quant. This prevents false-ready when
+    another engine instance already holds :8080 (model/display mismatch)."""
     import urllib.request
     start_time = time.time()
     last_print = 0
+    low = None
+    if model_name and model_name in MODELS:
+        low = MODELS[model_name]["json"][len("strata-"):-len(".json")]
     while time.time() - start_time < timeout:
         try:
             req = urllib.request.Request(f"http://127.0.0.1:{STRATA_PORT}/v1/models")
             with urllib.request.urlopen(req, timeout=2) as resp:
                 if resp.status == 200:
-                    print(f"[BSAI Manager] Engine ready!")
-                    return True
+                    body = resp.read().decode("utf-8", "replace")
+                    data = json.loads(body)
+                    ids = [m.get("id", "") for m in (data.get("data") or [])]
+                    if low:
+                        match = any(low in i for i in ids)
+                    else:
+                        match = bool(ids)
+                    if match:
+                        print(f"[BSAI Manager] Engine ready! ({ids})")
+                        return True
         except:
             pass
         # Print progress every 30 seconds
