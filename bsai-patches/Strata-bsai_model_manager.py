@@ -31,6 +31,31 @@ current_process = None
 current_model = None
 lock = threading.Lock()
 
+def available_models():
+    """动态探测本机实际可用的模型：strata-<quant>.json 存在，且 json 中
+    --native / --mtp 指向的模型文件真实存在，才允许切换/启动。
+    避免因缺 json 或缺模型文件导致 FileNotFoundError / 切换报错。"""
+    out = {}
+    for name, spec in MODELS.items():
+        jp = INSTALL_DIR / spec["json"]
+        if not jp.is_file():
+            continue
+        try:
+            cfg = json.loads(jp.read_text(encoding="utf-8-sig"))
+            args = cfg.get("args") or []
+            ok = True
+            for i, a in enumerate(args):
+                if a == "--native" and i + 1 < len(args):
+                    ok = ok and Path(args[i + 1]).is_file()
+                elif a == "--mtp" and i + 1 < len(args):
+                    ok = ok and Path(args[i + 1]).exists()
+            if ok:
+                out[name] = spec
+        except Exception:
+            continue
+    return out
+
+
 
 def start_strata(model_name):
     """Start Strata engine with given model"""
@@ -60,9 +85,32 @@ def start_strata(model_name):
         time.sleep(3)
         
         # Start new process
-        if model_name not in MODELS:
-            raise ValueError(f"Unknown model: {model_name}")
-        
+        avail = available_models()
+        if model_name not in avail:
+            missing = []
+            if model_name in MODELS:
+                jp = INSTALL_DIR / MODELS[model_name]["json"]
+                if not jp.is_file():
+                    missing.append(f"配置文件缺失: {jp}")
+                else:
+                    try:
+                        cfg = json.loads(jp.read_text(encoding="utf-8-sig"))
+                        args = cfg.get("args") or []
+                        for i, a in enumerate(args):
+                            if a == "--native" and i + 1 < len(args) and not Path(args[i + 1]).is_file():
+                                missing.append(f"模型文件缺失: {args[i + 1]}")
+                            elif a == "--mtp" and i + 1 < len(args) and not Path(args[i + 1]).is_file():
+                                missing.append(f"MTP 文件缺失: {args[i + 1]}")
+                    except Exception as e:
+                        missing.append(f"配置解析失败: {e}")
+            else:
+                missing.append(f"未知模型: {model_name}")
+            raise RuntimeError(
+                f"模型 {model_name} 不可用: {'; '.join(missing)}。"
+                f"当前可用模型: {', '.join(avail) if avail else '无'}。"
+                f"请先双击 BSAI_Strata服务.bat 完成模型安装/配置。"
+            )
+
         json_file = INSTALL_DIR / MODELS[model_name]["json"]
         if not json_file.exists():
             raise FileNotFoundError(f"Config file not found: {json_file}")
@@ -173,7 +221,7 @@ class ManagerHandler(http.server.BaseHTTPRequestHandler):
         elif self.path == "/api/models":
             self.send_json({
                 "current": current_model,
-                "models": MODELS
+                "models": available_models()
             })
         elif self.path == "/api/current":
             self.send_json({"current": current_model})
@@ -295,8 +343,13 @@ def main():
     except Exception as e:
         print(f"[BSAI Manager] Port check skipped: {e}")
     
-    # Get initial model from command line
-    initial_model = sys.argv[1] if len(sys.argv) > 1 else "IQ3_S"
+    # Get initial model from command line (fall back to first available)
+    avail = available_models()
+    initial_model = sys.argv[1] if len(sys.argv) > 1 else (next(iter(avail), None))
+    if initial_model and initial_model not in avail:
+        fallback = next(iter(avail), None)
+        print(f"[BSAI Manager] Model {initial_model} not available, falling back to: {fallback}")
+        initial_model = fallback
     
     print(f"[BSAI Manager] Starting with model: {initial_model}")
     print(f"[BSAI Manager] Waiting page: http://127.0.0.1:{MANAGER_PORT}/")

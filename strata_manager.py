@@ -707,9 +707,27 @@ if errorlevel 1 pause
         return None
 
     @classmethod
+    def _json_native_ok(cls, install, low):
+        """校验 strata-<low>.json 的 --native 主模型文件真实存在（跨机器一致性，
+        与 manager available_models 对齐）。"""
+        jp = os.path.join(install, f"strata-{low}.json")
+        if not os.path.isfile(jp):
+            return False
+        try:
+            with open(jp, "r", encoding="utf-8-sig") as f:
+                cfg = json.load(f)
+            args = cfg.get("args") or []
+            for i, a in enumerate(args):
+                if a == "--native" and i + 1 < len(args):
+                    return os.path.isfile(args[i + 1])
+            return True
+        except Exception:
+            return False
+
+    @classmethod
     def _pick_quant(cls, install):
-        """选择本机实际可用的 quant：优先 preferred/detect，但必须存在
-        strata-<quant>.json；否则回退到 install 下已存在的 strata-*.json。
+        """选择本机实际可用的 quant：优先 preferred/detect，但 json 与
+        --native 主模型文件都必须真实存在；否则回退到验证通过的 strata-*.json。
 
         Returns (quant_upper, quant_lower) e.g. ("IQ3_S", "iq3_s").
         """
@@ -720,13 +738,15 @@ if errorlevel 1 pause
         if not pair:
             pair = ("Q2_0", "Q2_0")
         lower, upper = pair[0], pair[1]
-        if os.path.isfile(os.path.join(install, f"strata-{lower}.json")):
+        if cls._json_native_ok(install, lower):
             return upper, lower
-        # 现有 json 兜底（C 盘可能只有 IQ3_S）
+        # 现有可用 json 兜底（json + 模型文件都真实存在才算可用）
         try:
             jsons = sorted(f for f in os.listdir(install) if f.startswith("strata-") and f.endswith(".json"))
             for jn in jsons:
                 low = jn[len("strata-"):-len(".json")]
+                if not cls._json_native_ok(install, low):
+                    continue
                 for (l2, u2) in cls._QUANT_JSON_MAP.values():
                     if l2 == low:
                         return u2, l2
@@ -756,13 +776,32 @@ if errorlevel 1 pause
                 # 整合包内无 Python：回退到 PATH 中的 python 命令（非相对，极端情况）
                 py_rel = "python"
                 print("[BSAI-LLM-Strata] 整合包内未找到 python.exe，启动器将使用 PATH 中的 python 命令。")
+            # 跨机器/自由切换：为本机所有已下载模型的 quant 自动生成 strata-<quant>.json。
+            # 模型 gguf 真实存在的 quant 才会生成成功；未下载的自动跳过。
+            # 这样任何用户装好模型后，前端 /api/models 与启动器都能自由切换。
+            available_ups = []
+            seen = set()
+            for label, (low, up) in cls._QUANT_JSON_MAP.items():
+                if up in seen:
+                    continue
+                seen.add(up)
+                jp = os.path.join(install, f"strata-{low}.json")
+                if os.path.isfile(jp) and cls._json_native_ok(install, low):
+                    available_ups.append(up)
+                    continue
+                try:
+                    ok, _msg = cls._refresh_json_config(label)
+                    if ok and cls._json_native_ok(install, low):
+                        available_ups.append(up)
+                except Exception:
+                    pass
+            if available_ups:
+                print(f"[BSAI-LLM-Strata] 可用模型配置: {', '.join(available_ups)}")
+            else:
+                print("[BSAI-LLM-Strata] 未检测到已下载的 Strata 模型（请先将模型 gguf 放入 "
+                      "ComfyUI/models/LLM/Qwen3.8-Flash-Next/<QUANT>/ 目录）")
+            # 全部 json 就绪后再选 bat 默认 quant（preferred 优先，模型文件校验通过）
             quant_upper, quant_lower = cls._pick_quant(install)
-            # 确保 strata-<quant>.json 存在（双击 bat 时 model_manager 需要它）
-            json_path = os.path.join(install, f"strata-{quant_lower}.json")
-            if not os.path.isfile(json_path):
-                label = next((k for k, v in cls._QUANT_JSON_MAP.items() if v[1] == quant_upper), None)
-                if label:
-                    cls._refresh_json_config(label)
             bat = os.path.join(root, cls._LAUNCHER_BAT_NAME)
             template = (
                 "@echo off\r\n"
@@ -901,7 +940,9 @@ if errorlevel 1 pause
             gguf_dir = os.path.join(STRATA_MODEL_DIR, quant_upper)
         if not os.path.isdir(gguf_dir):
             return False, f"gguf dir not found: {gguf_dir}"
-        ggufs = sorted([f for f in os.listdir(gguf_dir) if f.endswith(".gguf")])
+        ggufs = sorted([f for f in os.listdir(gguf_dir)
+                        if f.endswith(".gguf") and not f.startswith("mmproj-")
+                        and not f.endswith(".done")])
         if not ggufs:
             return False, f"no gguf files in {gguf_dir}"
         gguf1 = os.path.join(gguf_dir, ggufs[0])
