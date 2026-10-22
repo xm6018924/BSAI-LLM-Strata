@@ -13,3 +13,9 @@ setup.log
 Thumbs.db
 .idea/
 .vscode/
+
+# Strata runtime (engine binary + full upstream source, fetched separately)
+Strata/
+
+# Nemotron llama.cpp runtime binaries (huge, user-specific)
+Nemotron/

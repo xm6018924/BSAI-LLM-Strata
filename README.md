@@ -199,6 +199,39 @@ You'll see this in the console:
 
 ---
 
+### Step 4.5: Apply BSAI custom patches / 应用 BSAI 定制补丁（可选但推荐）
+
+**English**: This plugin ships BSAI's local customizations for the Strata engine in `bsai-patches/`.
+These are the exact files that give you the **model manager** (`bsai_model_manager.py`), the
+**DuckDuckGo web-search MCP** (`tools/ddg_websearch_mcp.py`) and the **BSAI logo in the web UI**
+(`serve/web/bsai-logo.png`). After the engine is copied into `Strata/`, overwrite the upstream
+files with the patches (filename maps to the path inside `Strata/`):
+
+```
+bsai-patches/Strata-bsai_model_manager.py      -> Strata/bsai_model_manager.py
+bsai-patches/Strata-requirements.txt           -> Strata/requirements.txt
+bsai-patches/Strata-setup.py                   -> Strata/setup.py
+bsai-patches/Strata-tools-ddg_websearch_mcp.py -> Strata/tools/ddg_websearch_mcp.py
+bsai-patches/serve-server.py                   -> Strata/serve/server.py
+bsai-patches/serve-web-app.js                  -> Strata/serve/web/app.js
+bsai-patches/serve-web-index.html              -> Strata/serve/web/index.html
+bsai-patches/serve-web-bsai-logo.png           -> Strata/serve/web/bsai-logo.png
+```
+
+**中文**: 本插件在 `bsai-patches/` 目录随附 BSAI 对 Strata 引擎的本地定制文件——包含**模型管理器**
+（`bsai_model_manager.py`）、**DuckDuckGo 联网搜索 MCP**（`tools/ddg_websearch_mcp.py`）和
+**Web UI 中的 BSAI logo**（`serve/web/bsai-logo.png`）。引擎复制到 `Strata/` 后，把补丁覆盖到
+上游同名文件即可（文件名对应 `Strata/` 内的路径，见上表）。
+
+> The Strata runtime itself (upstream source + engine binary) is fetched from
+> [github.com/Niko1221/Strata](https://github.com/Niko1221/Strata) / your model package —
+> it is **not** bundled as a git submodule.
+>
+> **注意**：Strata 运行时本身（上游源码 + 引擎二进制）来自
+> [github.com/Niko1221/Strata](https://github.com/Niko1221/Strata) 或你的模型包，**不作为 git 子模块捆绑**。
+
+---
+
 ### Step 5: Start using Strata / 开始使用 Strata
 
 **English**: There's no need to manually start Strata. Just use any BSAI node that supports Strata backend:

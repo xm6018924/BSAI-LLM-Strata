@@ -1,0 +1,18 @@
+# The Python packages setup.py installs into .venv
+# Relaxed version pins for better compatibility
+numpy
+jinja2
+regex
+pyyaml
+tqdm
+requests
+pillow
+psutil
+
+# their dependencies
+markupsafe
+certifi
+charset-normalizer
+idna
+urllib3
+colorama; sys_platform == "win32"
