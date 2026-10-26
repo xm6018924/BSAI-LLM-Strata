@@ -1427,8 +1427,9 @@ async function switchModel(model) {
     if (j.error) throw new Error(j.error);
     
     // Immediately redirect to waiting page on 8081 (never goes down!)
+    // 带上目标模型：Flint -> 等待页轮询 8082 并跳 8082，不影响 8080 的 Strata
     setTimeout(() => {
-      window.location.href = "http://127.0.0.1:8081/wait";
+      window.location.href = "http://127.0.0.1:8081/wait?model=" + encodeURIComponent(model);
     }, 500);
     
   } catch (e) {
@@ -1452,6 +1453,7 @@ const BS_MODELS = {
   "IQ2_XS": "⚖️ IQ2_XS 平衡",
   "IQ3_XXS": "🎯 IQ3_XXS 更好",
   "IQ3_S": "💎 IQ3_S 最好",
+  "flint": "🔧 Flint 40B 编程",
 };
 
 // Global: load current running model from manager service
