@@ -1117,11 +1117,13 @@ if errorlevel 1 pause
 # ---------------------------------------------------------------------------
 # NInferManager — local NInfer reverse engine
 #
-# The NInfer runtime lives inside the BSAI-FLUX3-ComfyUI plugin
-# (engine/ninfer-sm120|ninfer-sm89/ninfer-serve.exe, ported from the
-# original ComfyUI-AIManzi-MultimodalPrompt plugin) and consumes *.ninfer
-# models from ComfyUI/models/LLM. BSAI plugins talk to it through the same
-# OpenAI-compatible protocol as Strata.
+# The NInfer runtime (engine/ninfer-sm120|ninfer-sm89/ninfer-serve.exe, ported
+# from the original ComfyUI-AIManzi-MultimodalPrompt plugin) is NOT shipped with
+# any BSAI plugin — the binaries are too large for git. NInferManager.engine_dir()
+# resolves it from $BSAI_NINFER_ENGINE_DIR, this plugin's own engine/, the
+# upstream AIManzi plugin, or any sibling custom_nodes plugin that carries one.
+# It consumes *.ninfer models from ComfyUI/models/LLM. BSAI plugins talk to it
+# through the same OpenAI-compatible protocol as Strata.
 #
 # Port policy: NInfer listens on a DYNAMIC port starting at NINFER_PORT (8081).
 # 8081 is often already taken by a user's other Strata instance (e.g. the C:\
@@ -1203,15 +1205,32 @@ class NInferManager:
 
     # ---------- discovery ----------
     @classmethod
-    def _aimanzi_plugin_dir(cls):
-        """Return the directory that bundles the ninfer-serve engine.
+    def engine_dir(cls):
+        """Return the directory holding ninfer-sm<XX>/ + runtime/, or None.
 
-        The engine was ported from ComfyUI-AIManzi-MultimodalPrompt into
-        BSAI-FLUX3-ComfyUI/engine/ (ninfer-sm120, ninfer-sm89, runtime).
+        The engine binaries are too large for git, so they are not redistributed
+        with any BSAI plugin. Look for them in order:
+          1) $BSAI_NINFER_ENGINE_DIR
+          2) BSAI-FLUX3-ComfyUI/engine/   (bundled copy, when present)
+          3) ComfyUI-AIManzi-MultimodalPrompt/engine/  (upstream source)
+          4) any custom_nodes/*/engine/ that already contains ninfer-serve.exe
         """
-        p = os.path.join(_CUSTOM_NODES_ROOT, "BSAI-FLUX3-ComfyUI")
-        if os.path.isdir(p) and os.path.isdir(os.path.join(p, "engine")):
-            return p
+        cands = []
+        env_dir = os.environ.get("BSAI_NINFER_ENGINE_DIR", "").strip()
+        if env_dir:
+            cands.append(env_dir)
+        cands.append(os.path.join(_CUSTOM_NODES_ROOT, "BSAI-FLUX3-ComfyUI", "engine"))
+        cands.append(os.path.join(_CUSTOM_NODES_ROOT,
+                                  "ComfyUI-AIManzi-MultimodalPrompt", "engine"))
+        try:
+            for name in sorted(os.listdir(_CUSTOM_NODES_ROOT)):
+                cands.append(os.path.join(_CUSTOM_NODES_ROOT, name, "engine"))
+        except OSError:
+            pass
+        for d in cands:
+            for sub in ("ninfer-sm120", "ninfer-sm89"):
+                if os.path.exists(os.path.join(d, sub, "ninfer-serve.exe")):
+                    return d
         return None
 
     @classmethod
@@ -1219,8 +1238,8 @@ class NInferManager:
         """Return the ninfer-serve.exe path for this GPU, or None."""
         if cls._detected_engine:
             return cls._detected_engine
-        plugin = cls._aimanzi_plugin_dir()
-        if not plugin:
+        engine_root = cls.engine_dir()
+        if not engine_root:
             return None
         # Pick sm120 for RTX 50-series, sm89 for RTX 40-series
         profile = None
@@ -1238,13 +1257,13 @@ class NInferManager:
             pass
         if not profile:
             for cand in ("ninfer-sm120", "ninfer-sm89"):
-                exe = os.path.join(plugin, "engine", cand, "ninfer-serve.exe")
+                exe = os.path.join(engine_root, cand, "ninfer-serve.exe")
                 if os.path.exists(exe):
                     profile = cand
                     break
         if not profile:
             return None
-        exe = os.path.join(plugin, "engine", profile, "ninfer-serve.exe")
+        exe = os.path.join(engine_root, profile, "ninfer-serve.exe")
         if os.path.exists(exe):
             cls._detected_engine = exe
             return exe
@@ -1349,7 +1368,10 @@ class NInferManager:
                 return True, f"already_running @{cls._active_port} ({os.path.basename(target)})"
             engine = cls.find_engine()
             if not engine:
-                return False, "ninfer-serve.exe 未找到。请确认 BSAI-FLUX3-ComfyUI 插件的 engine/ 目录完整。"
+                return False, ("ninfer-serve.exe 未找到。NInfer 引擎体积过大，不随插件一起分发："
+                               "请安装 ComfyUI-AIManzi-MultimodalPrompt 插件（自带 engine/），"
+                               "或把 engine/ 目录放到 custom_nodes/BSAI-FLUX3-ComfyUI/engine，"
+                               "或设置环境变量 BSAI_NINFER_ENGINE_DIR 指向 engine 目录。")
             model = target or cls.find_model()
             if not model:
                 return False, "未找到 *.ninfer 模型。请把 .ninfer 模型放入 ComfyUI/models/LLM。"
@@ -1374,10 +1396,10 @@ class NInferManager:
                 "--vision", "--no-thinking",
             ]
             cls._active_model_path = model
-            plugin = cls._aimanzi_plugin_dir() or ""
+            engine_root = cls.engine_dir() or ""
             env = os.environ.copy()
             env["PATH"] = (os.path.dirname(engine) + os.pathsep
-                           + os.path.join(plugin, "engine", "runtime") + os.pathsep
+                           + os.path.join(engine_root, "runtime") + os.pathsep
                            + env.get("PATH", ""))
             log_path = os.path.join(_PLUGIN_DIR, "ninfer-startup.log")
             try:
@@ -1385,7 +1407,7 @@ class NInferManager:
                     lf.write(f"\n--- {time.strftime('%Y-%m-%d %H:%M:%S')} BSAI start @{port} "
                              f"model={os.path.basename(model)} ---\n")
                     cls._proc = subprocess.Popen(
-                        command, cwd=plugin, env=env,
+                        command, cwd=engine_root or os.path.dirname(engine), env=env,
                         stdout=lf, stderr=subprocess.STDOUT,
                     )
             except Exception as e:
@@ -1418,10 +1440,9 @@ class NInferManager:
             import psutil  # type: ignore
         except ImportError:
             return
-        plugin_dir = NInferManager._aimanzi_plugin_dir()
-        if not plugin_dir:
+        engine_root = NInferManager.engine_dir()
+        if not engine_root:
             return
-        engine_root = os.path.join(plugin_dir, "engine")
         killed = []
         for proc in psutil.process_iter(["name", "exe"]):
             try:
