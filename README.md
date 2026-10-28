@@ -49,6 +49,22 @@
 
 ---
 
+## Engine version / 引擎版本
+
+**Recommended: strata 0.1.52** (from upstream [Niko1221/Strata](https://github.com/Niko1221/Strata) v0.2.7, Windows x64 + CUDA 13, archs 75/86/89/120).
+推荐使用 **strata 0.1.52**（来自上游 v0.2.7 发布包，Windows x64 + CUDA 13，覆盖 75/86/89/120 架构）。
+
+**Upgrade / 升级**：下载 `strata-engine-0.1.52-win-cuda13.tar.gz`，解压后把全部文件覆盖到 `BSAI-LLM-Strata/Strata/engine/`（`strata.exe`、`strata-vision.exe`、`cublas64_13.dll`、`cublasLt64_13.dll`、`strata_kq.dll`、`BUILD.json`），重启服务。
+
+**Download / 下载**: <https://github.com/xm6018924/BSAI-LLM-Strata/releases/tag/v0.1.52-engine> (591.7 MB, SHA256 `bfa68c6b2e92f9c273caaf937d9ae164918e6de4cca2dc1f1d79d32470f0915a`)
+
+**Measured / 实测** (RTX 5090 Laptop 24 GB, Qwen3.8-Flash-Next Q2_0, ComfyUI holding VRAM, expert cache hit ~33%): engine 0.1.38 = 1.7 tok/s → engine 0.1.52 = **3.6 tok/s** (~2.1x). 4-bit/更大显存余量下更快；expert cache 命中率是主要变量。
+
+`engine/` is git-ignored, so the binary never ships in git — the ready-made package comes from the release above.
+`engine/` 在 .gitignore 内，二进制不进 git，预编译包通过上面的 Release 分发。
+
+---
+
 ## Installation / 安装步骤
 
 ### Step 1: Download the full model package / 下载完整模型包
