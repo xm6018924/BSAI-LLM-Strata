@@ -224,7 +224,7 @@ These are the exact files that give you the **model manager** (`bsai_model_manag
 files with the patches (filename maps to the path inside `Strata/`):
 
 ```
-bsai-patches/Strata-bsai_model_manager.py      -> Strata/bsai_model_manager.py
+bsai-patches/serve-bsai-model-manager.py       -> Strata/bsai_model_manager.py
 bsai-patches/Strata-requirements.txt           -> Strata/requirements.txt
 bsai-patches/Strata-setup.py                   -> Strata/setup.py
 bsai-patches/Strata-tools-ddg_websearch_mcp.py -> Strata/tools/ddg_websearch_mcp.py
@@ -233,6 +233,10 @@ bsai-patches/serve-web-app.js                  -> Strata/serve/web/app.js
 bsai-patches/serve-web-index.html              -> Strata/serve/web/index.html
 bsai-patches/serve-web-bsai-logo.png           -> Strata/serve/web/bsai-logo.png
 ```
+
+These patches are synced to upstream **v0.2.7** (engine 0.1.52), so a fresh `git clone` of
+[Niko1221/Strata](https://github.com/Niko1221/Strata) + these 8 files gives exactly the version
+this repo runs. 补丁已同步到上游 **v0.2.7**（引擎 0.1.52）：全新克隆上游后覆盖上表 8 个文件即可得到与本仓库一致的版本。
 
 **中文**: 本插件在 `bsai-patches/` 目录随附 BSAI 对 Strata 引擎的本地定制文件——包含**模型管理器**
 （`bsai_model_manager.py`）、**DuckDuckGo 联网搜索 MCP**（`tools/ddg_websearch_mcp.py`）和

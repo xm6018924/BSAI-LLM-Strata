@@ -1010,6 +1010,16 @@ if errorlevel 1 pause
         kv_resident_val = _get_arg("--kv-resident", "8192")
         vram_reserve_val = _get_arg("--vram-reserve-mib", "2000")
         max_context_val = _get_arg("--max-context", "65536")
+        resident_budget_val = _get_arg("--resident-budget-gib", "")
+
+        # Auto-detect system RAM to set resident-budget-gib (leave ~8GB for OS/ComfyUI)
+        if not resident_budget_val:
+            try:
+                import psutil
+                total_ram_gb = psutil.virtual_memory().total / (1024 ** 3)
+                resident_budget_val = str(max(8, int(total_ram_gb - 8)))
+            except Exception:
+                resident_budget_val = "24"
 
         # Build new args with correct paths + preserved tuning
         new_args = [
@@ -1025,6 +1035,9 @@ if errorlevel 1 pause
             "--kv", "q4_0",
             "--kv-resident", kv_resident_val,
             "--vram-reserve-mib", vram_reserve_val,
+            "--mmap-experts",
+            "--kv-grow",
+            "--resident-budget-gib", resident_budget_val,
         ]
 
         new_cfg = {
