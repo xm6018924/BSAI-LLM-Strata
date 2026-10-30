@@ -8,6 +8,13 @@
 <link rel="stylesheet" href="web/tokens.css">
 <link rel="stylesheet" href="web/components.css">
 <link rel="stylesheet" href="web/app.css">
+<style>
+  /* BSAI: this patched page keeps the older chat markup (.chat-scroll and .composer-wrap
+     as direct children of #view-chat). Upstream app.css since the 2026-10-28 update turns
+     .view--chat into a flex ROW for its new .chat-main/.chat-sidebar layout, which shoves
+     the composer into a narrow right-hand column. Force the vertical stack back. */
+  .view--chat { flex-direction: column; }
+</style>
 <script>
   // the theme before the first paint: the saved choice, else the system's
   try {

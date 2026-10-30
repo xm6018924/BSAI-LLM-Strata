@@ -72,6 +72,26 @@ current_model = None
 lock = threading.Lock()
 
 
+def restore_ui_patches():
+    """Strata 引擎目录被更新覆盖后，启动时自动把 BSAI 工作台界面补回来。
+
+    补丁源在插件根 bsai-patches/（strata_manager.apply_bsai_patches 同源）。
+    只补 web 界面文件；serve/server.py 保留引擎更新后的版本。
+    """
+    patches_dir = INSTALL_DIR.parent / "bsai-patches"
+    if not patches_dir.is_dir():
+        return
+    import shutil
+    for name, rel in (("serve-web-index.html", Path("serve") / "web" / "index.html"),
+                      ("serve-web-app.js", Path("serve") / "web" / "app.js"),
+                      ("serve-web-bsai-logo.png", Path("serve") / "web" / "bsai-logo.png")):
+        src = patches_dir / name
+        dst = INSTALL_DIR / rel
+        if src.is_file() and (not dst.exists() or dst.stat().st_size != src.stat().st_size):
+            shutil.copy2(src, dst)
+            print(f"[BSAI Manager] UI 补丁已恢复: {name}")
+
+
 def start_strata(model_name):
     """Start engine. Strata 固定占用 8080；Flint 独立占用 8082，两者并行互不杀进程。"""
     global strata_process, flint_process, current_model
@@ -308,10 +328,12 @@ class ManagerHandler(http.server.BaseHTTPRequestHandler):
 
 def main():
     global current_model
-    
+
     # Get initial model from command line
     initial_model = sys.argv[1] if len(sys.argv) > 1 else "IQ3_XXS"
-    
+
+    restore_ui_patches()
+
     print(f"[BSAI Manager] Starting with model: {initial_model}")
     print(f"[BSAI Manager] Waiting page: http://127.0.0.1:{MANAGER_PORT}/")
     print(f"[BSAI Manager] Web UI will open automatically when ready")
