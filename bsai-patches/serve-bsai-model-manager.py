@@ -142,7 +142,28 @@ def start_strata(model_name):
         json_file = INSTALL_DIR / MODELS[model_name]["json"]
         if not json_file.exists():
             raise FileNotFoundError(f"Config file not found: {json_file}")
-
+        
+        # BSAI: 联网搜索 MCP 自包含注入 —— 不依赖任何外部 shim。
+        # 运行卡 json 无 mcp_servers 时，用当前 python 补一个 Bing websearch 工具；
+        # 任何电脑装好插件后（tools/ddg_websearch_mcp.py 就位）即可联网搜索。
+        try:
+            cfg_m = json.loads(json_file.read_text(encoding="utf-8-sig"))
+            if not isinstance(cfg_m.get("mcp_servers"), dict) or not cfg_m.get("mcp_servers"):
+                ws = INSTALL_DIR / "tools" / "ddg_websearch_mcp.py"
+                if ws.is_file():
+                    cfg_m["mcp_servers"] = {"websearch": {
+                        "command": sys.executable,
+                        "args": ["-u", str(ws)],
+                        "env": {},
+                        "cwd": str(INSTALL_DIR),
+                    }}
+                    json_file.write_text(
+                        json.dumps(cfg_m, indent=4, ensure_ascii=False),
+                        encoding="utf-8")
+                    print(f"[BSAI Manager] websearch MCP 已注入: {ws.name}")
+        except Exception as e:
+            print(f"[BSAI Manager] MCP 注入跳过: {e}")
+        
         server_py = INSTALL_DIR / "serve" / "server.py"
 
         strata_process = subprocess.Popen(
