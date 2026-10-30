@@ -56,7 +56,7 @@
 
 **Upgrade / 升级**：下载 `strata-engine-0.1.54-windows-x86_64-cuda-cuda13.tar.gz`，解压后把全部文件覆盖到 `BSAI-LLM-Strata/Strata/engine/`（`strata.exe`、`strata-vision.exe`、`cublas64_13.dll`、`cublasLt64_13.dll`、`strata_kq.dll`、`BUILD.json`），重启服务。旧引擎先改名备份（如 `engine-bak-*`）。
 
-**Download / 下载**: <https://github.com/xm6018924/BSAI-LLM-Strata/releases/tag/v0.1.54-engine> (591.7 MB, SHA256 `620425196` bytes)
+**Download / 下载**: <https://github.com/xm6018924/BSAI-LLM-Strata/releases/tag/v0.1.54-engine> (591.7 MB / 620,425,196 bytes, SHA256 `bacff012e5f7e44ffefd5a08230363e0e527c8a86abf55ef1b31c833be37b8ab`)
 
 **Measured / 实测** (RTX 5090 Laptop 24 GB, Qwen3.8-Flash-Next Q2_0, ComfyUI holding VRAM, expert cache hit ~33%): engine 0.1.38 = 1.7 tok/s → engine 0.1.52 = **3.6 tok/s** (~2.1x). 4-bit/更大显存余量下更快；expert cache 命中率是主要变量。0.1.54 为 v0.2.8 同源最新引擎。
 
