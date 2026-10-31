@@ -1562,13 +1562,19 @@ class NemotronManager:
     # ---------- discovery ----------
     @classmethod
     def llama_dir(cls):
-        """Directory that contains llama-server.exe (bundled or next to models)."""
+        """Directory that contains llama-server.exe (bundled, next to models,
+        or the shared custom_nodes/BSAI-llama.cpp runtime)."""
         bundled = os.path.join(_PLUGIN_DIR, "Nemotron", "llama.cpp")
         if os.path.isdir(bundled):
             return bundled
         model_side = os.path.join(NEMOTRON_MODEL_DIR, "llama.cpp")
         if os.path.isdir(model_side):
             return model_side
+        # 整合包共享 llama.cpp：custom_nodes/BSAI-llama.cpp 或 custom_nodes/llama.cpp
+        for rel in ("BSAI-llama.cpp", "llama.cpp"):
+            cand = os.path.join(_CUSTOM_NODES_ROOT, rel)
+            if os.path.isdir(cand):
+                return cand
         return bundled
 
     @classmethod
@@ -1809,10 +1815,12 @@ class FlintManager:
         """Directory that contains llama-server.exe.
 
         Lookup order:
-          1) BSAI-LLM-Strata/flint/llama.cpp/   (bundled with this plugin)
-          2) models/LLM/flint/llama.cpp/         (next to the model files)
-          3) <integration root>/BSAI-llama.cpp/  (整合包自带 llama.cpp)
-          4) <integration root>/llama.cpp/
+          1) BSAI-LLM-Strata/flint/llama.cpp/        (bundled with this plugin)
+          2) models/LLM/flint/llama.cpp/              (next to the model files)
+          3) custom_nodes/BSAI-llama.cpp/             (整合包共享 llama.cpp)
+          4) custom_nodes/llama.cpp/
+          5) <integration root>/BSAI-llama.cpp/
+          6) <integration root>/llama.cpp/
         """
         bundled = os.path.join(_PLUGIN_DIR, "flint", "llama.cpp")
         if os.path.isdir(bundled):
@@ -1820,6 +1828,11 @@ class FlintManager:
         model_side = os.path.join(FLINT_MODEL_DIR, "llama.cpp")
         if os.path.isdir(model_side):
             return model_side
+        # 整合包共享 llama.cpp：custom_nodes/BSAI-llama.cpp 或 custom_nodes/llama.cpp
+        for rel in ("BSAI-llama.cpp", "llama.cpp"):
+            cand = os.path.join(_CUSTOM_NODES_ROOT, rel)
+            if os.path.isdir(cand):
+                return cand
         # 整合包根：本文件位于 <root>/ComfyUI/custom_nodes/BSAI-LLM-Strata/strata_manager.py
         integration_root = os.path.dirname(os.path.dirname(os.path.dirname(_PLUGIN_DIR)))
         for rel in ("BSAI-llama.cpp", "llama.cpp"):
