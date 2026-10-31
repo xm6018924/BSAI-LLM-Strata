@@ -648,6 +648,28 @@ if errorlevel 1 pause
                 out.append(os.path.join(install, f))
         return sorted(out)
 
+    @classmethod
+    def stop(cls, timeout=15.0):
+        """Terminate the running Strata server (run-*.bat + child processes)."""
+        proc = cls._proc
+        if proc is not None and proc.poll() is None:
+            try:
+                proc.terminate()
+                try:
+                    proc.wait(timeout)
+                except Exception:
+                    pass
+            except Exception:
+                pass
+            if proc.poll() is None:
+                try:
+                    subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                                   capture_output=True, timeout=10)
+                except Exception:
+                    pass
+        cls._proc = None
+        return {"ok": True}
+
     # ---------- health ----------
     @classmethod
     def health(cls, timeout=1.5):
@@ -1357,6 +1379,11 @@ class NInferManager:
                     pass
         cls._proc = None
         cls._model_ids = []
+
+    @classmethod
+    def stop(cls):
+        cls._stop()
+        return {"ok": True}
 
     # ---------- health ----------
     @classmethod
