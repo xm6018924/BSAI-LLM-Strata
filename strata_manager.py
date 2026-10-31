@@ -1170,6 +1170,21 @@ NEMOTRON_DEFAULT_ALIAS = "Nemotron-3.5-Bolt-74B-A9B"
 # 可用环境变量 BSAI_NEMOTRON_CTX 覆盖。
 NEMOTRON_DEFAULT_CONTEXT = int(os.environ.get("BSAI_NEMOTRON_CTX", "8192"))
 
+# ---------------------------------------------------------------------------
+# Flint 40B：与 Strata / NInfer / Nemotron 并列的第四个本地 LLM 引擎选项。
+#   - 引擎: llama.cpp (llama-server.exe)
+#   - 模型: 用户自行下载到 ComfyUI/models/LLM/flint/  (*.gguf)
+#   - 端口: 8082 (避开 Strata 8080 / NInfer 8081 / Nemotron 8085)
+# 所有 BSAI 插件必须通过 FlintManager (ensure_running / chat / base_url) 调用。
+# ---------------------------------------------------------------------------
+FLINT_HOST = "127.0.0.1"
+FLINT_PORT = 8082
+FLINT_BASE_URL = f"http://{FLINT_HOST}:{FLINT_PORT}/v1"
+FLINT_MODEL_DIR = os.path.join(folder_paths.models_dir, "LLM", "flint")
+FLINT_DEFAULT_ALIAS = "Flint-40B"
+# Flint 主打长上下文编程，默认 64K；可用环境变量 BSAI_FLINT_CTX 覆盖。
+FLINT_DEFAULT_CONTEXT = int(os.environ.get("BSAI_FLINT_CTX", "65536"))
+
 # ComfyUI custom_nodes root: this file lives in <root>/BSAI-LLM-Strata/
 _CUSTOM_NODES_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -1773,6 +1788,240 @@ class NemotronManager:
         status, raw = _blocking_post_json(url, body, timeout=timeout)
         if status >= 400:
             raise RuntimeError(f"Nemotron HTTP {status}: {raw[:300]}")
+        return json.loads(raw)
+
+
+class FlintManager:
+    """Auto-discover llama-server.exe + Flint GGUF model, start it on
+    127.0.0.1:8082 and health-check /v1/models. OpenAI-compatible protocol,
+    same as Strata / NInfer / Nemotron — any BSAI node can route to it."""
+
+    _lock = threading.Lock()
+    _proc = None
+    _detected_engine = None
+    _detected_model = None
+    _model_ids = []
+    _active_model_path = None
+
+    # ---------- discovery ----------
+    @classmethod
+    def llama_dir(cls):
+        """Directory that contains llama-server.exe.
+
+        Lookup order:
+          1) BSAI-LLM-Strata/flint/llama.cpp/   (bundled with this plugin)
+          2) models/LLM/flint/llama.cpp/         (next to the model files)
+          3) <integration root>/BSAI-llama.cpp/  (整合包自带 llama.cpp)
+          4) <integration root>/llama.cpp/
+        """
+        bundled = os.path.join(_PLUGIN_DIR, "flint", "llama.cpp")
+        if os.path.isdir(bundled):
+            return bundled
+        model_side = os.path.join(FLINT_MODEL_DIR, "llama.cpp")
+        if os.path.isdir(model_side):
+            return model_side
+        # 整合包根：本文件位于 <root>/ComfyUI/custom_nodes/BSAI-LLM-Strata/strata_manager.py
+        integration_root = os.path.dirname(os.path.dirname(os.path.dirname(_PLUGIN_DIR)))
+        for rel in ("BSAI-llama.cpp", "llama.cpp"):
+            cand = os.path.join(integration_root, rel)
+            if os.path.isdir(cand):
+                return cand
+        return bundled
+
+    @classmethod
+    def find_engine(cls):
+        """Return the llama-server.exe path, or None."""
+        if cls._detected_engine:
+            return cls._detected_engine
+        exe = os.path.join(cls.llama_dir(), "llama-server.exe")
+        if os.path.exists(exe):
+            cls._detected_engine = exe
+            return exe
+        return None
+
+    @classmethod
+    def list_models(cls):
+        """Return [(display_rel_path, absolute_path), ...] for every *.gguf
+        model under models/LLM/flint (recursive, sorted)."""
+        out = []
+        if not os.path.isdir(FLINT_MODEL_DIR):
+            return out
+        for root, _dirs, files in os.walk(FLINT_MODEL_DIR):
+            for f in sorted(files):
+                if not f.lower().endswith(".gguf"):
+                    continue
+                if "mmproj" in f.lower():
+                    continue
+                abs_p = os.path.join(root, f)
+                rel = os.path.relpath(abs_p, FLINT_MODEL_DIR).replace("\\", "/")
+                out.append((rel, abs_p))
+        return out
+
+    @classmethod
+    def find_model(cls):
+        """Return the first GGUF model, or None."""
+        if cls._detected_model:
+            return cls._detected_model
+        for rel, abs_p in cls.list_models():
+            cls._detected_model = abs_p
+            return abs_p
+        return None
+
+    # ---------- health ----------
+    @classmethod
+    def health(cls, timeout=1.5):
+        url = f"http://{FLINT_HOST}:{FLINT_PORT}/v1/models"
+        try:
+            status, body = _blocking_get_json(url, timeout=timeout)
+            data = json.loads(body)
+            cls._model_ids = [m.get("id", "?") for m in data.get("data", [])]
+            return {"ok": True, "models": cls._model_ids}
+        except Exception as e:
+            return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+    @classmethod
+    def models(cls):
+        """Return model ids served by the (running) Flint server."""
+        h = cls.health(timeout=1.0)
+        return h.get("models") or cls._model_ids
+
+    @classmethod
+    def base_url(cls):
+        return FLINT_BASE_URL
+
+    @classmethod
+    def resolve_model(cls, model_path):
+        """Accept a display rel path or absolute path; return absolute path."""
+        if not model_path:
+            return cls.find_model()
+        p = str(model_path).replace("/", os.sep)
+        if os.path.isabs(p):
+            return p if os.path.exists(p) else None
+        cand = os.path.join(FLINT_MODEL_DIR, p)
+        return cand if os.path.exists(cand) else None
+
+    # ---------- ensure running (auto-start + wait) ----------
+    @classmethod
+    def ensure_running(cls, wait_timeout=300.0, poll_interval=2.0, model_path=None):
+        """Block until the Flint llama.cpp server is reachable on 8082;
+        spawn llama-server.exe if not running.
+        model_path: optional rel/abs GGUF path; switching restarts the server."""
+        target = cls.resolve_model(model_path)
+        if target is None:
+            target = cls.find_model()
+        _h = cls.health(timeout=1.0)
+        if (cls._proc is not None and cls._proc.poll() is None
+                and cls._active_model_path == target
+                and _h.get("ok") and _h.get("models")):
+            return True, f"already_running ({os.path.basename(target or '?')})"
+        with cls._lock:
+            _h2 = cls.health(timeout=1.0)
+            if (cls._proc is not None and cls._proc.poll() is None
+                    and cls._active_model_path == target
+                    and _h2.get("ok") and _h2.get("models")):
+                return True, f"already_running ({os.path.basename(target or '?')})"
+            engine = cls.find_engine()
+            if not engine:
+                return False, ("llama-server.exe 未找到。请把 llama.cpp 运行时放入 "
+                               "BSAI-LLM-Strata/flint/llama.cpp/、models/LLM/flint/llama.cpp/，"
+                               "或整合包根的 BSAI-llama.cpp/ / llama.cpp/。")
+            model = target or cls.find_model()
+            if not model:
+                return False, ("未找到 Flint GGUF 模型。请把模型下载到 "
+                               "ComfyUI/models/LLM/flint/（例如 flint-UD-Q4_K_XL.gguf）。")
+            if cls._proc is not None and cls._proc.poll() is None:
+                if cls._active_model_path != model:
+                    print(f"[BSAI-LLM-Strata] Flint 切换模型: "
+                          f"{os.path.basename(cls._active_model_path or '?')} -> {os.path.basename(model)}")
+                    cls._stop()
+                    time.sleep(2)
+            command = [
+                engine,
+                "-m", model,
+                "--host", FLINT_HOST,
+                "--port", str(FLINT_PORT),
+                "-c", str(FLINT_DEFAULT_CONTEXT),
+                "-ngl", "99",
+                "-fa", "auto",
+                "--jinja",
+                "--parallel", "1",
+                "--alias", FLINT_DEFAULT_ALIAS,
+                "--temp", "0.6", "--top-p", "0.95", "--top-k", "20",
+                "--repeat-penalty", "1.05",
+                "-n", str(FLINT_DEFAULT_CONTEXT),
+            ]
+            cls._active_model_path = model
+            env = os.environ.copy()
+            env["PATH"] = (os.path.dirname(engine) + os.pathsep + env.get("PATH", ""))
+            log_path = os.path.join(_PLUGIN_DIR, "flint-startup.log")
+            try:
+                with open(log_path, "a", encoding="utf-8") as lf:
+                    lf.write(f"\n--- {time.strftime('%Y-%m-%d %H:%M:%S')} BSAI Flint start @{FLINT_PORT} "
+                             f"model={os.path.basename(model)} ---\n")
+                    cls._proc = subprocess.Popen(command, cwd=os.path.dirname(engine), env=env,
+                                                 stdout=lf, stderr=subprocess.STDOUT)
+            except Exception as e:
+                return False, f"启动 llama-server 失败: {type(e).__name__}: {e}"
+            deadline = time.time() + wait_timeout
+            while time.time() < deadline:
+                time.sleep(poll_interval)
+                h = cls.health(timeout=2.0)
+                if h.get("ok") and h.get("models"):
+                    print(f"[BSAI-LLM-Strata] Flint 引擎就绪 @{FLINT_PORT}: {h.get('models')}")
+                    return True, f"started_and_ready @{FLINT_PORT}"
+                if cls._proc.poll() is not None:
+                    try:
+                        tail = open(log_path, encoding="utf-8", errors="replace").read().splitlines()[-15:]
+                    except Exception:
+                        tail = []
+                    return False, "llama-server 进程已退出。引擎日志:\n" + "\n".join(tail)
+            return False, f"等待 Flint 启动超时({wait_timeout:.0f}s)。请查看 flint-startup.log。"
+
+    @classmethod
+    def _stop(cls, timeout=15.0):
+        """Terminate the running llama-server process."""
+        proc = cls._proc
+        if proc is not None and proc.poll() is None:
+            try:
+                proc.terminate()
+                try:
+                    proc.wait(timeout)
+                except Exception:
+                    pass
+            except Exception:
+                pass
+            if proc.poll() is None:
+                try:
+                    subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                                   capture_output=True, timeout=10)
+                except Exception:
+                    pass
+        cls._proc = None
+        cls._model_ids = []
+
+    @classmethod
+    def stop(cls):
+        cls._stop()
+        return {"ok": True}
+
+    # ---------- HTTP call ----------
+    @staticmethod
+    def chat(messages, model=None, max_tokens=4096, temperature=0.7, timeout=600):
+        """POST /v1/chat/completions to the local Flint server (OpenAI-compatible)."""
+        if not model:
+            mids = FlintManager.models()
+            model = mids[0] if mids else FLINT_DEFAULT_ALIAS
+        url = f"{FLINT_BASE_URL}/chat/completions"
+        body = json.dumps({
+            "model": model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "stream": False,
+        }).encode("utf-8")
+        status, raw = _blocking_post_json(url, body, timeout=timeout)
+        if status >= 400:
+            raise RuntimeError(f"Flint HTTP {status}: {raw[:300]}")
         return json.loads(raw)
 
 
