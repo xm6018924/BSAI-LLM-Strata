@@ -7126,7 +7126,9 @@ def make_handler(svc: Service):
                 body = (ROOT / "serve" / "web" / ("monitor.html" if path else "index.html")).read_bytes()
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
-                self.send_header("Cache-Control", "no-store")   # BSAI: a cached index hides the workbench page behind a stale copy
+                self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+                self.send_header("Pragma", "no-cache")
+                self.send_header("Expires", "0")
                 if not path:
                     # the chat's svg/html preview is a sandboxed frame; this keeps it from navigating away to a web page
                     # (a link or <meta refresh> inside a model's html), which no sandbox flag does (serve/web/preview.js)

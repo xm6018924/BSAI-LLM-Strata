@@ -1454,6 +1454,7 @@ const BS_MODELS = {
   "IQ3_XXS": "🎯 IQ3_XXS 更好",
   "IQ3_S": "💎 IQ3_S 最好",
   "flint": "🔧 Flint 40B 编程",
+  "deepseek": "🧠 DeepSeek V4.1 推理",
 };
 
 // Global: load current running model from manager service

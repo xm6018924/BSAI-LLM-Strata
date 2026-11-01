@@ -17,6 +17,7 @@ from pathlib import Path
 MANAGER_PORT = 8081
 STRATA_PORT = 8080   # BSAI Strata 引擎 / BSAI 网页（切换模型时原地重启，保持占用）
 FLINT_PORT = 8082    # Flint 40B 独立 llama.cpp 引擎（与 Strata 并行，互不占用端口）
+DEEPSEEK_PORT = 8083 # DeepSeek V4.1 独立 strata-dsv41 引擎（与 Strata 并行，互不占用端口）
 INSTALL_DIR = Path(__file__).parent
 PYTHON_EXE = sys.executable
 
@@ -27,6 +28,8 @@ MODELS = {
     "IQ3_XXS": {"json": "strata-iq3_xxs.json", "desc": "更好 / good"},
     "IQ3_S": {"json": "strata-iq3_s.json", "desc": "最好质量 / best quality"},
     "flint": {"json": None, "desc": "Flint 40B 编程模型 / coding"},
+    "deepseek": {"json": "strata-deepseek-v4.1-flash-ist-das-2.00bpw.json",
+                 "desc": "DeepSeek V4.1 推理 / reasoning"},
 }
 
 # Flint 40B: 独立 llama.cpp 引擎（非 Strata），固定端口 FLINT_PORT=8082，不占用 8080
@@ -68,6 +71,7 @@ def _find_flint_model():
 
 strata_process = None   # 跑在 8080 的 Strata 引擎
 flint_process = None     # 跑在 8082 的 Flint llama.cpp 引擎（独立进程）
+deepseek_process = None  # 跑在 8083 的 DeepSeek strata-dsv41 引擎（独立进程）
 current_model = None
 lock = threading.Lock()
 
@@ -93,8 +97,8 @@ def restore_ui_patches():
 
 
 def start_strata(model_name):
-    """Start engine. Strata 固定占用 8080；Flint 独立占用 8082，两者并行互不杀进程。"""
-    global strata_process, flint_process, current_model
+    """Start engine. Strata 固定占用 8080；Flint 独立占用 8082；DeepSeek 独立占用 8083。"""
+    global strata_process, flint_process, deepseek_process, current_model
 
     if model_name not in MODELS:
         raise ValueError(f"Unknown model: {model_name}")
@@ -135,8 +139,71 @@ def start_strata(model_name):
         print(f"[BSAI Manager] Model flint is now active on port {FLINT_PORT}!")
         return
 
-    # --- Strata 模型：原地重启 8080 上的 Strata 引擎；Flint(8082) 不受影响 ---
+    # --- DeepSeek V4.1：独立 strata-dsv41 引擎，端口 8083，停掉 8080 的 Strata 以释放显存 ---
+    if model_name == "deepseek":
+        with lock:
+            # 停掉 8080 上的 Strata（DeepSeek 与 Qwen 同占大显存，不并行）
+            if strata_process:
+                try:
+                    subprocess.run(["taskkill", "/f", "/t", "/pid", str(strata_process.pid)],
+                                 capture_output=True)
+                    strata_process.wait(timeout=5)
+                except:
+                    try:
+                        strata_process.kill()
+                    except:
+                        pass
+                strata_process = None
+            try:
+                subprocess.run(["taskkill", "/f", "/im", "strata.exe"], capture_output=True)
+            except:
+                pass
+            # 重启旧的 DeepSeek 进程
+            if deepseek_process:
+                try:
+                    subprocess.run(["taskkill", "/f", "/t", "/pid", str(deepseek_process.pid)],
+                                 capture_output=True)
+                    deepseek_process.wait(timeout=5)
+                except:
+                    try:
+                        deepseek_process.kill()
+                    except:
+                        pass
+            time.sleep(3)
+
+            json_file = INSTALL_DIR / MODELS[model_name]["json"]
+            if not json_file.exists():
+                raise FileNotFoundError(f"Config file not found: {json_file}")
+
+            server_py = INSTALL_DIR / "serve" / "server.py"
+            deepseek_process = subprocess.Popen(
+                [PYTHON_EXE, str(server_py), "--engine", "strata", "--config", str(json_file),
+                 "--port", str(DEEPSEEK_PORT)],
+                cwd=str(INSTALL_DIR),
+                creationflags=subprocess.CREATE_NEW_CONSOLE
+            )
+            print(f"[BSAI Manager] Started DeepSeek V4.1 on port {DEEPSEEK_PORT}")
+
+        wait_for_engine(DEEPSEEK_PORT)
+        current_model = model_name
+        print(f"[BSAI Manager] Model {model_name} is now active on port {DEEPSEEK_PORT}!")
+        return
+
+    # --- Strata 模型：原地重启 8080 上的 Strata 引擎；停掉 DeepSeek(8083) 释放显存；Flint(8082) 不受影响 ---
     with lock:
+        # 停掉 8083 上的 DeepSeek（Qwen 与 DeepSeek 同占大显存，不并行）
+        if deepseek_process:
+            try:
+                subprocess.run(["taskkill", "/f", "/t", "/pid", str(deepseek_process.pid)],
+                             capture_output=True)
+                deepseek_process.wait(timeout=5)
+            except:
+                try:
+                    deepseek_process.kill()
+                except:
+                    pass
+            deepseek_process = None
+
         # Stop existing Strata process (kill entire process tree)
         if strata_process:
             try:
@@ -237,12 +304,18 @@ class ManagerHandler(http.server.BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         qs = parse_qs(parsed.query)
         target_model = qs.get("model", [""])[0]
-        # Flint -> 等 8082；其余（Strata）-> 等 8080
-        wait_port = FLINT_PORT if target_model == "flint" else STRATA_PORT
+        # Flint -> 等 8082；DeepSeek -> 等 8083；其余（Strata）-> 等 8080
+        if target_model == "flint":
+            wait_port = FLINT_PORT
+        elif target_model == "deepseek":
+            wait_port = DEEPSEEK_PORT
+        else:
+            wait_port = STRATA_PORT
         if parsed.path == "/" or parsed.path == "/wait":
             # Waiting page: auto-redirect when target engine is ready
             check_url = f"http://127.0.0.1:{wait_port}/v1/models"
-            redirect_url = f"http://127.0.0.1:{wait_port}/"
+            # 破缓存：每次跳转带时间戳，确保浏览器拿到最新的 BSAI 工作台页面
+            redirect_url = f"http://127.0.0.1:{wait_port}/?_={int(time.time() * 1000)}"
             html = '''<!DOCTYPE html>
 <html>
 <head>

@@ -3,11 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Strata</title>
-<link rel="icon" href="web/bsai-logo.png" type="image/png">
-<link rel="stylesheet" href="web/tokens.css">
-<link rel="stylesheet" href="web/components.css">
-<link rel="stylesheet" href="web/app.css">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>BSAI 工作台</title>
+<link rel="icon" href="web/bsai-logo.png?v=bsai" type="image/png">
+<link rel="stylesheet" href="web/tokens.css?v=bsai">
+<link rel="stylesheet" href="web/components.css?v=bsai">
+<link rel="stylesheet" href="web/app.css?v=bsai">
 <style>
   /* BSAI: this patched page keeps the older chat markup (.chat-scroll and .composer-wrap
      as direct children of #view-chat). Upstream app.css since the 2026-10-28 update turns
@@ -167,6 +170,11 @@
         border-radius: 6px; padding: 6px 8px; color: #00d4ff; font-size: 11px;
         cursor: pointer; text-align: center; grid-column: 1 / -1;
       ">🔧 Flint 40B 编程</button>
+      <button class="bsai-quick-model" data-model="deepseek" style="
+        background: rgba(124,77,255,0.12); border: 1px solid rgba(124,77,255,0.35);
+        border-radius: 6px; padding: 6px 8px; color: #c4b5fd; font-size: 11px;
+        cursor: pointer; text-align: center; grid-column: 1 / -1;
+      ">🧠 DeepSeek V4.1</button>
     </div>
   </div>
 </aside>
@@ -180,19 +188,19 @@
   </span>
   <nav class="st-tabs" role="tablist" aria-label="Views">
     <button class="st-tab" role="tab" id="tab-btn-chat" aria-controls="view-chat" aria-selected="true" data-tab="chat">
-      <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-chat"/></svg>Chat</button>
+      <svg class="st-icon st-icon--sm"><use href="web/sprite.svg?v=bsai#i-chat"/></svg>Chat</button>
     <button class="st-tab" role="tab" id="tab-btn-images" aria-controls="view-images" aria-selected="false" data-tab="images" hidden>
-      <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-image"/></svg>Images</button>
+      <svg class="st-icon st-icon--sm"><use href="web/sprite.svg?v=bsai#i-image"/></svg>Images</button>
     <button class="st-tab" role="tab" id="tab-btn-monitor" aria-controls="view-monitor" aria-selected="false" data-tab="monitor">
-      <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-activity"/></svg>Monitor</button>
+      <svg class="st-icon st-icon--sm"><use href="web/sprite.svg?v=bsai#i-activity"/></svg>Monitor</button>
     <button class="st-tab" role="tab" id="tab-btn-about" aria-controls="view-about" aria-selected="false" data-tab="about">
-      <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-info"/></svg>About</button>
+      <svg class="st-icon st-icon--sm"><use href="web/sprite.svg?v=bsai#i-info"/></svg>About</button>
   </nav>
   <span class="st-header__spacer"></span>
   <span class="st-pill" id="pill" data-state="idle" role="status" aria-live="polite">
     <span class="st-pill__dot"></span><span id="pill-text">Connecting&hellip;</span></span>
   <button class="st-btn st-btn--icon" id="theme-btn" title="Light / dark" aria-label="Switch between light and dark">
-    <svg class="st-icon"><use id="theme-icon" href="web/sprite.svg#i-moon"/></svg></button>
+    <svg class="st-icon"><use id="theme-icon" href="web/sprite.svg?v=bsai#i-moon"/></svg></button>
 </header>
 
 <main>
@@ -212,14 +220,14 @@
         <textarea id="input" rows="2" placeholder="Ask anything&hellip;" aria-label="Message"></textarea>
         <div class="st-composer__bar">
           <button type="button" class="st-btn st-btn--icon" id="attach-btn" title="Attach a text file (or drop it here)" aria-label="Attach a file">
-            <svg class="st-icon"><use href="web/sprite.svg#i-attach"/></svg></button>
+            <svg class="st-icon"><use href="web/sprite.svg?v=bsai#i-attach"/></svg></button>
           <input type="file" id="file" multiple hidden>
           <button type="button" class="st-btn st-btn--icon" id="new-btn" title="New chat" aria-label="New chat">
-            <svg class="st-icon"><use href="web/sprite.svg#i-new-chat"/></svg></button>
+            <svg class="st-icon"><use href="web/sprite.svg?v=bsai#i-new-chat"/></svg></button>
           <button type="button" class="st-btn st-btn--icon" id="export-btn" title="Save this chat as Markdown" aria-label="Save this chat">
-            <svg class="st-icon"><use href="web/sprite.svg#i-download"/></svg></button>
+            <svg class="st-icon"><use href="web/sprite.svg?v=bsai#i-download"/></svg></button>
           <button type="button" class="st-btn st-btn--icon" id="sampling-btn" title="Sampling and thinking" aria-label="Sampling and thinking">
-            <svg class="st-icon"><use href="web/sprite.svg#i-settings"/></svg></button>
+            <svg class="st-icon"><use href="web/sprite.svg?v=bsai#i-settings"/></svg></button>
           <!-- BSAI Model Switcher -->
           <div class="bsai-model-switcher" style="position: relative; display: inline-block;">
             <button type="button" class="st-btn bsai-model-btn" id="bsai-model-btn" title="Switch model" style="display: flex; align-items: center; gap: 4px; font-size: 12px; padding: 6px 10px;">
@@ -241,9 +249,9 @@
           <span class="spacer"></span>
           <span class="composer-hint" id="composer-hint"></span>
           <button type="button" class="st-btn st-btn--secondary" id="stop-btn" hidden>
-            <svg class="st-icon st-icon--sm"><use href="web/sprite.svg#i-stop"/></svg>Stop</button>
+            <svg class="st-icon st-icon--sm"><use href="web/sprite.svg?v=bsai#i-stop"/></svg>Stop</button>
           <button type="submit" class="st-btn st-btn--primary st-btn--send" id="send-btn" aria-label="Send">
-            <svg class="st-icon"><use href="web/sprite.svg#i-send"/></svg></button>
+            <svg class="st-icon"><use href="web/sprite.svg?v=bsai#i-send"/></svg></button>
         </div>
       </form>
     </div>
@@ -685,6 +693,10 @@
             <div style="font-weight:bold;margin-bottom:4px;">🔧 Flint 40B (编程模型)</div>
             <div class="muted small">Recursive Flint 40B MoE · 262K 上下文 · llama.cpp 引擎</div>
           </div>
+          <div style="padding:12px;background:rgba(124,77,255,0.10);border-radius:8px;cursor:pointer;" class="model-item" data-model="deepseek">
+            <div style="font-weight:bold;margin-bottom:4px;">🧠 DeepSeek V4.1 (推理)</div>
+            <div class="muted small">DeepSeek-V4.1-Flash IST-DAS-2.00bpw · strata-dsv41 引擎 · 8K 上下文</div>
+          </div>
         </div>
         <div id="model-status" class="muted small" style="margin-top:12px;"></div>
       </div>
@@ -728,7 +740,7 @@
 <aside class="st-drawer" id="drawer" data-open="false" aria-label="Sampling and thinking" aria-hidden="true">
   <div class="st-drawer__head"><span class="card-title">Sampling</span>
     <button class="st-btn st-btn--icon" id="drawer-close" aria-label="Close">
-      <svg class="st-icon"><use href="web/sprite.svg#i-chevron"/></svg></button></div>
+      <svg class="st-icon"><use href="web/sprite.svg?v=bsai#i-chevron"/></svg></button></div>
   <div class="st-drawer__body">
     <div class="st-field">
       <label class="st-label" for="s-thinking">Thinking <output id="o-thinking"></output></label>
@@ -778,6 +790,6 @@
 <div class="scrim" id="scrim" hidden></div>
 <div class="st-toasts" id="toasts" aria-live="polite"></div>
 </div><!-- End of main content wrapper -->
-<script src="web/app.js"></script>
+<script src="web/app.js?v=bsai"></script>
 </body>
 </html>
