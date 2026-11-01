@@ -171,6 +171,46 @@ current_model = None
 lock = threading.Lock()
 
 
+def _pids_listening_on(port):
+    """返回正在 LISTEN 指定 TCP 端口的 PID 集合。"""
+    pids = set()
+    try:
+        out = subprocess.run(["netstat", "-ano", "-p", "TCP"],
+                             capture_output=True, text=True).stdout
+    except Exception:
+        return pids
+    for line in out.splitlines():
+        parts = line.split()
+        if len(parts) >= 5 and parts[0].upper() == "TCP" and parts[3].upper() == "LISTENING":
+            if parts[1].rsplit(":", 1)[-1] == str(port):
+                try:
+                    pids.add(int(parts[4]))
+                except ValueError:
+                    pass
+    return pids
+
+
+def free_port(port, timeout=15):
+    """杀掉占用指定端口的残留进程并等待端口释放。
+
+    管理器重启后 deepseek_process/flint_process 等内存变量会丢失，无法据此杀旧实例；
+    上一实例/孤儿进程仍占着固定端口时，server.py 会直接报
+    "port already in use" 退出。启动前统一按端口清理可根治该报错。
+    """
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        pids = _pids_listening_on(port)
+        if not pids:
+            return True
+        for pid in pids:
+            try:
+                subprocess.run(["taskkill", "/f", "/t", "/pid", str(pid)], capture_output=True)
+            except Exception:
+                pass
+        time.sleep(1)
+    return not _pids_listening_on(port)
+
+
 def restore_ui_patches():
     """Strata 引擎目录被更新覆盖后，启动时自动把 BSAI 工作台界面补回来。
 
@@ -223,6 +263,9 @@ def start_strata(model_name):
                     "--alias", FLINT_ALIAS, "--temp", "0.6", "--top-p", "0.95",
                     "--top-k", "20", "--repeat-penalty", "1.05", "-ngl", "99",
                     "-n", "65536"]
+            # 启动前先释放端口: 杀掉残留的 llama-server, 否则新实例无法绑定 8082
+            free_port(FLINT_PORT)
+
             flint_process = subprocess.Popen(
                 args,
                 cwd=str(Path(exe).parent),
@@ -269,6 +312,9 @@ def start_strata(model_name):
             json_file = INSTALL_DIR / MODELS[model_name]["json"]
             if not json_file.exists():
                 raise FileNotFoundError(f"Config file not found: {json_file}")
+
+            # 启动前先释放端口: 杀掉上一实例/孤儿进程(可能不是本管理器启动的), 否则 server.py 报 port already in use
+            free_port(DEEPSEEK_PORT)
 
             server_py = INSTALL_DIR / "serve" / "server.py"
             deepseek_process = subprocess.Popen(
@@ -346,6 +392,9 @@ def start_strata(model_name):
         except Exception as e:
             print(f"[BSAI Manager] MCP 注入跳过: {e}")
         
+        # 启动前先释放端口: 杀掉残留/孤儿实例, 否则 server.py 报 port already in use
+        free_port(STRATA_PORT)
+
         server_py = INSTALL_DIR / "serve" / "server.py"
 
         strata_process = subprocess.Popen(
