@@ -11,6 +11,7 @@ import subprocess
 import threading
 import http.server
 import socketserver
+from html.parser import HTMLParser
 from pathlib import Path
 
 # Config
@@ -68,6 +69,100 @@ def _find_flint_model():
     raise FileNotFoundError(
         "Flint GGUF 未找到（%s 下 %s）" % (base / "LLM" / "flint",
                                      " / ".join(FLINT_MODEL_CANDIDATES)))
+
+# ------------------------------------------------------------------ BSAI 联网搜索
+# 网页里的 SEARCH: 流程调用 GET /api/websearch?q=...；后端抓 Bing（国内可达，
+# DuckDuckGo/Google 直连会超时），只用标准库，8 秒超时，失败就返回空结果。
+SEARCH_TIMEOUT = 8
+SEARCH_HOSTS = ("cn.bing.com", "www.bing.com")
+SEARCH_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+             "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
+
+
+class _BingParser(HTMLParser):
+    """从 Bing 结果页的 <li class="b_algo"> 里取 标题 / 链接 / 摘要。"""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.results = []
+        self._algo = False
+        self._h2 = False
+        self._cap = False
+        self._href = None
+        self._buf = []
+
+    def handle_starttag(self, tag, attrs):
+        a = dict(attrs)
+        cls = (a.get("class") or "").split()
+        if tag == "li" and "b_algo" in cls:
+            self._algo, self._href = True, None
+        elif tag == "h2" and self._algo:
+            self._h2 = True
+        elif tag == "a" and self._h2:
+            self._href, self._buf = a.get("href"), []
+        elif tag == "div" and "b_caption" in cls and self._algo:
+            self._cap = True
+        elif tag in ("p", "div") and self._cap:
+            self._buf.append(" ")
+
+    def handle_endtag(self, tag):
+        if tag == "a" and self._h2:
+            title = " ".join("".join(self._buf).split())
+            if title and self._href:
+                self.results.append({"title": title, "url": self._href, "snippet": ""})
+            self._h2, self._href = False, None
+        elif tag == "h2":
+            self._h2 = False
+        elif tag == "div" and self._cap:
+            snip = " ".join("".join(self._buf).split())
+            if snip and self.results:
+                self.results[-1]["snippet"] = (self.results[-1]["snippet"] + " " + snip).strip()[:600]
+            self._cap, self._buf = False, []
+        elif tag == "li" and self._algo:
+            self._algo = self._cap = False
+            self._buf = []
+
+    def handle_data(self, data):
+        if self._h2 or self._cap:
+            self._buf.append(data)
+
+
+def bing_search(query, count=6):
+    """Bing 抓取，无 API Key；cn.bing.com 优先，失败再试 www.bing.com。"""
+    import urllib.parse
+    import urllib.request
+    count = max(1, min(int(count or 6), 10))
+    qs = urllib.parse.urlencode({"q": query, "setlang": "zh-CN", "count": str(count + 4)})
+    last = None
+    for host in SEARCH_HOSTS:
+        try:
+            req = urllib.request.Request("https://%s/search?%s" % (host, qs), headers={
+                "User-Agent": SEARCH_UA,
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+            })
+            with urllib.request.urlopen(req, timeout=SEARCH_TIMEOUT) as resp:
+                html = resp.read().decode("utf-8", "replace")
+        except Exception as e:
+            last = e
+            print(f"[BSAI Manager] websearch {host} 失败: {e}")
+            continue
+        p = _BingParser()
+        try:
+            p.feed(html)
+        except Exception as e:
+            last = e
+        out = []
+        for r in p.results:
+            if not r["url"].startswith("http") or any(o["url"] == r["url"] for o in out):
+                continue
+            out.append(r)
+            if len(out) >= count:
+                break
+        if out:
+            return out
+    raise RuntimeError("搜索失败: %s" % (last or "没有解析到结果"))
+
 
 strata_process = None   # 跑在 8080 的 Strata 引擎
 flint_process = None     # 跑在 8082 的 Flint llama.cpp 引擎（独立进程）
@@ -369,6 +464,16 @@ class ManagerHandler(http.server.BaseHTTPRequestHandler):
             })
         elif self.path == "/api/current":
             self.send_json({"current": current_model})
+        elif parsed.path == "/api/websearch":
+            q = (qs.get("q", [""])[0] or "").strip()
+            if not q:
+                self.send_json({"error": "缺少 q 参数", "results": []}, 400)
+                return
+            try:
+                self.send_json({"query": q, "results": bing_search(q, 6)})
+            except Exception as e:
+                print(f"[BSAI Manager] websearch 失败: {e}")
+                self.send_json({"query": q, "results": [], "error": str(e)})
         else:
             self.send_json({"error": "Not found"}, 404)
     
@@ -412,7 +517,10 @@ def main():
     print(f"[BSAI Manager] Web UI will open automatically when ready")
     
     # Start HTTP manager server first (so waiting page is available)
-    httpd = socketserver.TCPServer(("127.0.0.1", MANAGER_PORT), ManagerHandler)
+    # 线程化：联网搜索最长 8 秒，不能把模型切换 / 状态轮询一起堵住
+    httpd = socketserver.ThreadingTCPServer(("127.0.0.1", MANAGER_PORT), ManagerHandler)
+    httpd.daemon_threads = True
+    httpd.allow_reuse_address = True
     manager_thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     manager_thread.start()
     

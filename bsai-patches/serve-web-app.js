@@ -786,16 +786,21 @@ function setBusy(on) {
   $("composer-hint").textContent = on ? "" : "Shift+Enter: new line";
 }
 
-async function send() {
-  const text = $("input").value.trim();
+async function send(autoText, searchDepth = 0) {
+  // autoText: a follow-up the page writes itself (the web-search results). send() used to read the composer only,
+  // so that follow-up hit the "nothing typed" guard and returned - the answer stalled right after "正在联网搜索".
+  const auto = autoText != null;
+  const text = (auto ? String(autoText) : $("input").value).trim();
   if ((!text && !attachments.length) || busy) return;
   messages.push({role: "user", text, images: attachments.filter((a) => a.kind !== "file"),
                  files: attachments.filter((a) => a.kind === "file"), time: Date.now()});
   attachments = [];
-  renderAttachments();
-  $("input").value = "";
-  autosize();
-  const m = {role: "assistant", text: "", reasoning: "", time: Date.now()};
+  if (!auto) {
+    renderAttachments();
+    $("input").value = "";
+    autosize();
+  }
+  const m = {role: "assistant", text: "", reasoning: "", time: Date.now(), searchDepth};
   messages.push(m);
   renderChat();
   const el = $("chat").lastElementChild;
@@ -885,34 +890,34 @@ async function send() {
   saveChat();
   scrollDown();
 
-  // Auto-detect SEARCH: command and run web search (max 1 round, 6s timeout)
-  const searchMatch = m.text.match(/^SEARCH:\s*(.+)$/m);
-  if (searchMatch && !m.searchDone) {
+  // Auto-detect SEARCH: command and run web search (max 2 rounds, 8s timeout)
+  const searchMatch = !m.error && m.text.match(/^SEARCH:\s*(.+)$/m);
+  if (searchMatch && !m.searchDone && m.searchDepth < 2) {
     const query = searchMatch[1].trim();
     m.text = m.text.replace(searchMatch[0], "🔍 正在联网搜索: " + query + " ...");
+    m.searchDone = true;
     updateAssistant(el, m, false);
+    scrollDown();
+    let searchResult = "";
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
       const resp = await fetch(`${MANAGER_URL}/api/websearch?q=${encodeURIComponent(query)}`, {signal: controller.signal});
-      clearTimeout(timeoutId);
       const data = await resp.json();
-      let searchResult = "【联网搜索结果】:\n";
-      if (data.results && data.results.length > 0) {
+      clearTimeout(timeoutId);
+      if (resp.ok && Array.isArray(data.results) && data.results.length) {
+        searchResult = "【联网搜索结果】\n";
         data.results.forEach((r, i) => {
-          searchResult += `${i+1}. ${r.title}\n${r.snippet}\n${r.url}\n\n`;
+          searchResult += `${i + 1}. ${r.title}\n${r.snippet || ""}\n${r.url || ""}\n\n`;
         });
-      } else {
-        searchResult += "未搜索到相关结果。\n";
       }
-      messages.push({role: "user", text: searchResult + "\n请基于以上真实搜索结果，直接整理成最终中文回答给我。不要再输出SEARCH指令了。", time: Date.now()});
-      m.searchDone = true;
-      send();
-    } catch (e) {
-      m.text = "⚠️ 联网搜索超时，基于已有知识回答如下：";
-      m.searchDone = true;
-      updateAssistant(el, m, false);
-    }
+    } catch (e) { /* manager down / offline: keep going without results instead of dead-ending here */ }
+    // Always continue the turn: with the hits, or telling the model it has no fresh results
+    const next = searchResult
+      ? `${searchResult}\n请基于以上真实搜索结果，直接整理成最终中文回答给我。不要再输出SEARCH指令了。`
+      : "（联网搜索不可用或没有结果，请基于你自己的知识直接回答上面的问题，并如实说明没有拿到最新联网信息。不要再输出SEARCH指令。）";
+    send(next, m.searchDepth + 1);
+    return;
   }
 }
 
