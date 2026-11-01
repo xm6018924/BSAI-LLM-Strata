@@ -2186,10 +2186,16 @@ class DeepSeekManager:
     def ensure_running(cls, wait_timeout=600.0, poll_interval=3.0, model_build=None):
         target = model_build or cls.detect_build()
         _h = cls.health(timeout=1.0)
-        if (cls._proc is not None and cls._proc.poll() is None
-                and cls._active_build == target
-                and _h.get("ok") and _h.get("models")):
-            return True, f"already_running ({target or '?'})"
+        # BSAI 2026-11-01: 端口上已有健康且带模型的服务就直接认账 —— 不论这个进程
+        # 是否是本模块实例自己启动的。原判定要求 cls._proc 不为 None, 而任何用
+        # importlib 重新加载本文件的调用方(如 BSAI_QwenNodes 的 HTTP backend)拿到的是
+        # 全新模块, _proc=None, 于是把已就绪的引擎杀掉重来: setup.py ~5 分钟 + 引擎
+        # 加载 ~5 分钟, 白白丢掉一个正在服务的实例。唯一不短路的情况是本模块确实
+        # 持有另一个 build 的活进程 —— 那是真正的切换, 交给下面的 _stop 分支。
+        if (_h.get("ok") and _h.get("models")
+                and not (cls._proc is not None and cls._proc.poll() is None
+                         and cls._active_build not in (None, target))):
+            return True, f"already_running ({cls._active_build or target or '?'})"
 
         if not target:
             return False, ("未找到 DeepSeek-V4.1-Flash GGUF 分片。请把模型下载到 "
