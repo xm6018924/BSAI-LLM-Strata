@@ -2230,7 +2230,6 @@ class DeepSeekManager:
                 "--model", target,
                 "--gguf-dir", DEEPSEEK_MODEL_DIR,
                 "--port", str(DEEPSEEK_PORT),
-                "--vision", "no",
                 "--no-browser",
                 "--no-start", "--yes",
             ]
