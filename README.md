@@ -1,16 +1,114 @@
 # BSAI-LLM-Strata
 
-> Local **Qwen3.8-Flash-Next (125B MoE)** inference for ComfyUI, served via [Strata](https://github.com/Niko1221/Strata) and exposed as an OpenAI-compatible HTTP API.
+> Local **Qwen3.8-Flash-Next (125B MoE)** and **DeepSeek-V4.1-Flash** inference for ComfyUI, served via [Strata](https://github.com/Niko1221/Strata) and exposed as an OpenAI-compatible HTTP API.
 >
-> 本地 **Qwen3.8-Flash-Next (125B MoE)** 大模型推理插件，通过 [Strata](https://github.com/Niko1221/Strata) 引擎在本地运行，以 OpenAI 兼容 API 形式供 ComfyUI 全家桶调用。
+> 本地 **Qwen3.8-Flash-Next (125B MoE)** 与 **DeepSeek-V4.1-Flash** 大模型推理插件，通过 [Strata](https://github.com/Niko1221/Strata) 引擎在本地运行，以 OpenAI 兼容 API 形式供 ComfyUI 全家桶调用。
+
+---
+
+## Latest release / 最新版本
+
+### v3.1.0 (2026-11-02) — DeepSeek V4.1 Flash / DeepSeek V4.1 Flash 支持
+
+**English**: This release adds **DeepSeek-V4.1-Flash** (`deepseek41` architecture, IST-DAS 2.00 bpw) as a second local model family next to Qwen3.8-Flash-Next. It runs on its own engine (`strata-dsv41` 0.1.55) at `http://127.0.0.1:8083/v1`, so the two backends never fight over a port. Both models are large, so only one stays resident: switching to DeepSeek stops the 8080 Strata engine first (and the other way round) and releases VRAM before loading.
+
+**中文**：本版本新增 **DeepSeek-V4.1-Flash**（`deepseek41` 架构，IST-DAS 2.00bpw）作为第二个本地模型家族，与 Qwen3.8-Flash-Next 并列。它由独立引擎 `strata-dsv41` 0.1.55 驱动，API 位于 `http://127.0.0.1:8083/v1`，与 Qwen 的 8080 端口互不冲突。两个模型体积都很大，同一时间只常驻一个：切到 DeepSeek 会先停掉 8080 的 Strata 引擎（反向同理），释放显存后再加载。
+
+**What's new / 更新内容**
+
+- **Dedicated engine / 独立引擎**：`strata-dsv41` **0.1.55**（Windows x64 + CUDA 13），与 Qwen 使用的 `strata` 0.1.54 并列存放于 `Strata/engine-dsv41/`。
+- **Vision on / 视觉通道默认开启**：生成的配置写入 `--vision on` 并加载 `mmproj-BF16.gguf`，图片理解能力与 Qwen 一致。
+- **One-click launcher / 一键启动**：`BSAI_DeepSeek服务.bat`。若模型管理器（8081）已在运行，脚本只调用 `/api/switch` 切模型，不再开第二个管理器实例。
+- **Web UI model switch / 网页一键切换**：工作台底部下拉菜单可在 Qwen（Q2_0 / IQ2_XS / IQ3_XXS / IQ3_S）与 DeepSeek 之间切换。
+- **Config self-healing / 配置自动重建**：`strata-deepseek-v4.1-flash-ist-das-2.00bpw.json` 缺失时，管理器自动调用 `setup.py --family deepseek41 --model IST-DAS-2.00bpw --port 8083` 重新生成。
+- **Embedded-Python fix / 嵌入式 Python 修复**：整合包的 `python313._pth` 会整体替换 `sys.path` 且不含脚本目录，直接运行 `setup.py` 会报 `ModuleNotFoundError: No module named 'strata_control'`。本版本在导入 `strata_control` 之前显式把 Strata 根目录加入 `sys.path`，`Strata/setup.py` 与 `bsai-patches/Strata-setup.py` 两份都已同步。
+
+**Download / 下载**
+
+| Item / 项目 | Where / 位置 |
+|---|---|
+| DeepSeek-V4.1-Flash 模型权重 | **Quark Pan / 夸克网盘**：<https://pan.quark.cn/s/13ac9a33c6dc>（目录 `deepseek-v4.1-flash`） |
+| Qwen3.8-Flash-Next 一体化包 | <https://pan.quark.cn/s/f6d2bbdaaa18> |
+| Engine binary / 引擎二进制 | 网盘模型包内，或由 Strata `setup.py` 生成（`Strata/engine/`、`Strata/engine-dsv41/` 不进 git） |
+
+**Hardware / 硬件要求（DeepSeek-V4.1-Flash IST-DAS-2.00bpw）**
+
+| Component | Spec / 要求 |
+|---|---|
+| VRAM | 24 GB 可用（RTX 5090 Laptop 实测：15,360 个专家中约 2,326 个常驻显存，其余按需从内存/SSD 读取） |
+| RAM | ≥ 64 GB |
+| Disk | 约 257 GB（模型分片 + n-gram 表 + drafter），建议 NVMe |
+| Speed / 速度 | 约 **4.7 tok/s**（12 GB 显卡 + 64 GB 内存实测）；显存与内存越大越快 |
+
+---
+
+### Install DeepSeek-V4.1-Flash / 安装 DeepSeek-V4.1-Flash
+
+**English**
+
+1. Download the `deepseek-v4.1-flash` folder from the Quark Pan link above and extract it to `ComfyUI/models/LLM/DeepSeek/`:
+
+```
+ComfyUI/models/LLM/DeepSeek/
+├── deepseek-v4.1-flash-IST-DAS-2.00bpw/   5 split GGUFs + mmproj-BF16.gguf (vision)
+└── deepseek-v4.1-flash-shared/            Engram, dspark drafter, tokenizer and other shared files
+```
+
+2. Put the engine in `Strata/engine-dsv41/0.1.55-windows-x86_64-cuda-cuda13/` (`strata-dsv41.exe` + its DLLs). If your model package already ships it, just keep it there.
+3. Update this plugin (`git pull`, or ComfyUI Manager) and restart ComfyUI once, so `bsai-patches/` refreshes `bsai_model_manager.py` and `serve/server.py`.
+4. Double-click `BSAI_DeepSeek服务.bat`. On first launch the manager generates the config if it is missing, then starts `serve/server.py` on port 8083.
+5. When it is ready, the browser opens the manager page at `http://127.0.0.1:8081/`; the OpenAI-compatible API is `http://127.0.0.1:8083/v1`.
+
+**中文**
+
+1. 从上面的夸克网盘链接下载 `deepseek-v4.1-flash` 目录，解压到 `ComfyUI/models/LLM/DeepSeek/`：
+
+```
+ComfyUI/models/LLM/DeepSeek/
+├── deepseek-v4.1-flash-IST-DAS-2.00bpw/   5 个 GGUF 分片 + mmproj-BF16.gguf（视觉）
+└── deepseek-v4.1-flash-shared/            Engram、dspark 投机层、分词器等共享文件
+```
+
+2. 把引擎放到 `Strata/engine-dsv41/0.1.55-windows-x86_64-cuda-cuda13/`（`strata-dsv41.exe` 及其 DLL）。网盘包已带的就直接保留原位置。
+3. 更新本插件（`git pull` 或 ComfyUI Manager），并重启一次 ComfyUI，让 `bsai-patches/` 覆盖 `bsai_model_manager.py` 与 `serve/server.py`。
+4. 双击 `BSAI_DeepSeek服务.bat`。首次启动时管理器会在配置缺失时自动生成，然后拉起 8083 端口的 `serve/server.py`。
+5. 就绪后浏览器自动打开管理器页面 `http://127.0.0.1:8081/`；OpenAI 兼容 API 为 `http://127.0.0.1:8083/v1`。
+
+> **First run may take a while / 首次启动较慢**: `setup.py` checks the SHA-256 of the 139 GB shards (3–5 minutes) and installs the Python packages it needs. If pip stalls on your network, set `PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/` before launching.
+>
+> 首次启动时 `setup.py` 会校验 139 GB 分片的 SHA-256（约 3–5 分钟），并安装它需要的 Python 包；国内网络若 pip 下载超时，先设置 `PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/` 再启动。
+
+---
+
+### Upgrade from an older version / 从旧版本升级
+
+**English**
+
+1. Back up `Strata/` (at least `engine-dsv41/` and any `strata-deepseek-*.json`): rename them with a `-bak-<date>` suffix.
+2. `git pull` this repo (or update through ComfyUI Manager). `bsai-patches/` is re-applied to `Strata/` on the next ComfyUI start.
+3. Put the new `engine-dsv41/0.1.55-.../` in place.
+4. Delete the old `Strata/strata-deepseek-*.json` so it is rebuilt on the next launch — old configs can still carry `--vision no` or paths from a previous drive.
+5. Restart ComfyUI, then double-click `BSAI_DeepSeek服务.bat`. Nothing else to configure: model paths, engine path and port are detected and written automatically.
+
+Qwen-only users are unaffected: the DeepSeek files are optional, and port 8080 / engine 0.1.54 keep working as before.
+
+**中文**
+
+1. 备份 `Strata/`（至少备份 `engine-dsv41/` 和旧的 `strata-deepseek-*.json`），改名加 `-bak-<日期>` 后缀。
+2. 对本仓库执行 `git pull`（或通过 ComfyUI Manager 更新）。下次启动 ComfyUI 时 `bsai-patches/` 会自动覆盖到 `Strata/`。
+3. 放入新的 `engine-dsv41/0.1.55-.../` 引擎目录。
+4. 删除旧的 `Strata/strata-deepseek-*.json`，让下次启动重新生成——旧配置可能还残留 `--vision no` 或上一个盘符的路径。
+5. 重启 ComfyUI，再双击 `BSAI_DeepSeek服务.bat`。模型路径、引擎路径、端口都会自动探测并写入，无需手动改配置。
+
+只用 Qwen 的用户不受影响：DeepSeek 相关文件是可选的，8080 端口与 0.1.54 引擎照旧工作。
 
 ---
 
 ## What is this? / 这是什么？
 
-**English**: This plugin turns your NVIDIA GPU into a local 125B-parameter LLM server. It wraps the open-source [Strata](https://github.com/Niko1221/Strata) engine (a fast C++ MoE inference runtime) and exposes an OpenAI-compatible API at `http://127.0.0.1:8080/v1`. Any ComfyUI node that speaks OpenAI API can call it directly — no cloud, no API key, no per-token cost.
+**English**: This plugin turns your NVIDIA GPU into a local LLM server for two model families: **Qwen3.8-Flash-Next** (125B MoE, port 8080) and **DeepSeek-V4.1-Flash** (port 8083, see the latest release above). It wraps the open-source [Strata](https://github.com/Niko1221/Strata) engine (a fast C++ MoE inference runtime) and exposes an OpenAI-compatible API at `http://127.0.0.1:8080/v1`. Any ComfyUI node that speaks OpenAI API can call it directly — no cloud, no API key, no per-token cost.
 
-**中文**: 本插件把你的 NVIDIA 显卡变成一个本地 125B 参数的大模型服务器。它封装了开源的 [Strata](https://github.com/Niko1221/Strata) 引擎（一个高速 C++ MoE 推理运行时），在 `http://127.0.0.1:8080/v1` 暴露 OpenAI 兼容 API。任何支持 OpenAI API 的 ComfyUI 节点都可以直接调用——不联网、不填 API Key、不花一分钱。
+**中文**: 本插件把你的 NVIDIA 显卡变成一个本地大模型服务器，可运行 **Qwen3.8-Flash-Next**（125B MoE，端口 8080）与 **DeepSeek-V4.1-Flash**（端口 8083，见上文最新版本）两套模型。它封装了开源的 [Strata](https://github.com/Niko1221/Strata) 引擎（一个高速 C++ MoE 推理运行时），在 `http://127.0.0.1:8080/v1` 暴露 OpenAI 兼容 API。任何支持 OpenAI API 的 ComfyUI 节点都可以直接调用——不联网、不填 API Key、不花一分钱。
 
 ---
 
@@ -19,6 +117,7 @@
 - **One-click install**: Download the full model package from the network drive, extract it, install the plugin — everything else is automatic.
 - **Engine auto-copy**: The plugin automatically detects the Strata engine binary in your model directory and copies it to the right place.
 - **OpenAI-compatible endpoint** at `http://127.0.0.1:8080/v1` — any ComfyUI node that speaks OpenAI API can point here directly.
+- **Two local model families / 两套本地模型**: Qwen3.8-Flash-Next on `8080` (Strata 0.1.54) and DeepSeek-V4.1-Flash on `8083` (`strata-dsv41` 0.1.55). Switch between them from the manager UI; only one of the two large models stays in VRAM at a time.
 - **Auto-start on demand** — any BSAI node that selects Strata as its backend will probe health first; if Strata isn't running, it automatically launches `run-<quant>.bat` and waits (up to 4 minutes) for the 125B model to load before sending the first request.
 - **Auto-generated config paths** — no more hardcoded `G:\...` paths. On startup, the plugin scans your actual model directory, finds the GGUF files, mmproj, packs, and MTP tensors, and regenerates `strata-<quant>.json` with correct absolute paths for your machine.
 - **One-click model switching in Web UI** — switch between Q2_0 / IQ2_XS / IQ3_XXS / IQ3_S directly from the bottom dropdown menu or About page card, no restart needed. Fullscreen loading overlay, no "connection refused" errors.
@@ -46,6 +145,9 @@
 | ComfyUI | Portable/embedded Python build recommended (Python 3.10 – 3.14) |
 
 > **Note / 注意**: This uses CUDA. AMD / Intel Arc / CPU-only setups are not supported by the Strata engine itself.
+>
+> **DeepSeek-V4.1-Flash / DeepSeek 模型**: 需要 24 GB 可用显存、≥ 64 GB 内存、约 257 GB 磁盘（2.00bpw），
+> 详见上文的「Latest release / 最新版本」章节。Qwen 的最低配置不变。
 
 ---
 
@@ -53,6 +155,8 @@
 
 **Recommended: strata 0.1.54** (from upstream [Niko1221/Strata](https://github.com/Niko1221/Strata) v0.2.8, Windows x64 + CUDA 13, archs 75/86/89/120).
 推荐使用 **strata 0.1.54**（来自上游 v0.2.8 发布包，Windows x64 + CUDA 13，覆盖 75/86/89/120 架构）。
+
+**DeepSeek engine / DeepSeek 引擎**: **`strata-dsv41` 0.1.55** lives beside it in `Strata/engine-dsv41/0.1.55-windows-x86_64-cuda-cuda13/` (`strata-dsv41.exe`). It is only used by the DeepSeek V4.1 backend on port 8083; Qwen keeps using `Strata/engine/`. 与 Qwen 的 `Strata/engine/` 并列，只在 8083 的 DeepSeek 后端使用，两者互不覆盖。
 
 **Upgrade / 升级**：下载 `strata-engine-0.1.54-windows-x86_64-cuda-cuda13.tar.gz`，解压后把全部文件覆盖到 `BSAI-LLM-Strata/Strata/engine/`（`strata.exe`、`strata-vision.exe`、`cublas64_13.dll`、`cublasLt64_13.dll`、`strata_kq.dll`、`BUILD.json`），重启服务。旧引擎先改名备份（如 `engine-bak-*`）。
 
@@ -440,6 +544,19 @@ Model name: `qwen3.8-flash-next-q2_0`. API key can be anything (we use `strata` 
 
 > **Note / 注意**: The context window is 65536 tokens by default. `fit_max_tokens: true` is enabled, so the server will automatically adjust output length to fit within the context window.
 
+### DeepSeek-V4.1-Flash / DeepSeek 模型
+
+```
+Base URL:   http://127.0.0.1:8083/v1          (OpenAI format)
+Model:      deepseek-v4.1-flash
+Anthropic:  http://127.0.0.1:8083/v1/messages
+```
+
+Same request body as above; only the port and the model name differ.
+请求体与上面完全一致，只是端口改为 8083、模型名改为 `deepseek-v4.1-flash`。
+
+> **Note / 注意**: The generated DeepSeek config starts with `--max-context 8192`; raise it in `Strata/strata-deepseek-*.json` if your RAM and disk can take a longer context. 生成的 DeepSeek 配置默认 `--max-context 8192`；内存与磁盘允许时可自行调高。
+
 ---
 
 ## Web Endpoints / 管理端点
@@ -492,6 +609,18 @@ Make sure the `engine/` folder exists in your model directory (`models/LLM/Qwen3
 
 Use a smaller quant: `Q2_0` requires ~24 GB VRAM. If you have 16 GB, switch to `IQ2_XS` or run Strata on CPU only.
 
+### `ModuleNotFoundError: No module named 'strata_control'` when setup.py runs / setup.py 报找不到 strata_control
+
+**English**: This came from the embedded Python of the portable build: `python313._pth` replaces `sys.path` and drops the script's own directory, so `setup.py` could not import its sibling package. Fixed in v3.1.0 (`sys.path.insert(0, Strata root)` before the `strata_control` imports). Update the plugin and delete any stale `Strata/setup.py` copy.
+
+**中文**: 这是整合包嵌入式 Python 的问题：`python313._pth` 会整体替换 `sys.path` 且不含脚本所在目录，导致 `setup.py` 找不到同级包。v3.1.0 已在导入 `strata_control` 之前显式加入 Strata 根目录。更新插件后删除残留的旧 `Strata/setup.py` 即可。
+
+### setup.py stalls at "Step 3: Python packages" / setup.py 卡在安装 Python 包
+
+**English**: pip is pulling wheels from `pypi.org`, which is slow or unreachable on some networks. Set a mirror before launching: `set PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/` (and the same for `PIP_EXTRA_INDEX_URL`).
+
+**中文**: pip 正在从 `pypi.org` 拉取 wheel，部分网络下会超时。启动前设置镜像即可：`set PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/`（`PIP_EXTRA_INDEX_URL` 同样处理）。
+
 ---
 
 ## License
@@ -501,6 +630,10 @@ This plugin code is MIT. The bundled [Strata](https://github.com/Niko1221/Strata
 ---
 
 ## Changelog
+
+### v3.1.0 (2026-11-02) — DeepSeek V4.1 Flash backend
+- **English**: Added **DeepSeek-V4.1-Flash** (`deepseek41`) on the dedicated `strata-dsv41` 0.1.55 engine, port `8083`; vision enabled (`--vision on`); `BSAI_DeepSeek服务.bat` one-click launch and `/api/switch` model switching; config auto-generation through `setup.py --family deepseek41`; fixed `ModuleNotFoundError: strata_control` caused by the embedded Python `._pth` dropping the script directory from `sys.path`. Model weights: Quark Pan <https://pan.quark.cn/s/13ac9a33c6dc>.
+- **中文**: 新增 **DeepSeek-V4.1-Flash**（`deepseek41`），使用独立的 `strata-dsv41` 0.1.55 引擎，端口 `8083`；视觉通道开启（`--vision on`）；`BSAI_DeepSeek服务.bat` 一键启动并支持 `/api/switch` 切模型；配置缺失时由 `setup.py --family deepseek41` 自动生成；修复嵌入式 Python `._pth` 不把脚本目录加入 `sys.path` 导致的 `ModuleNotFoundError: strata_control`。模型权重：夸克网盘 <https://pan.quark.cn/s/13ac9a33c6dc>。
 
 ### v3.0.0 (2026-10-16) — Web UI Model Switcher + Multimodal + API Improvements
 - **English**: Major web UI upgrade.
