@@ -62,6 +62,10 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
+# BSAI: 整合包自带的是嵌入式 Python，python313._pth 会整体替换 sys.path 且不含脚本目录，
+# 直接运行 setup.py 时 strata_control 无法导入，这里显式把 Strata 根目录加入搜索路径。
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 from strata_control import acquisition
 from strata_control import tls
 
