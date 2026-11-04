@@ -4657,6 +4657,11 @@ class Service:
 
     def with_shared(self, req: dict, api: str) -> dict:
         """The request with the shared thinking level and max tokens filled in where it has none of its own."""
+        if getattr(self, "family", None) == "deepseek41":     # BSAI: 0.1.56 accepts low/high/max or 1..100 only
+            effort = req.get("reasoning_effort")
+            if isinstance(effort, str) and effort.strip().lower() in ("medium", "middle", "normal", "none", "minimal"):
+                req = dict(req)
+                req["reasoning_effort"] = "high" if effort.strip().lower() != "none" else "low"
         s = self.shared
         effort = self.effort_default()
         if not s and not effort:
@@ -4872,6 +4877,10 @@ class Service:
         images = self.vision is not None
         return {
             "service": "strata", "model": self.model,
+            # BSAI: clients (comfyui-minimax-h3-prompt-enhancer-T8) identify the service by protocol_version 1;
+            # the status has always carried every other field that contract asks for, the number was just missing
+            "protocol_version": 1,
+            "package_version": (getattr(self.engine, "info", {}) or {}).get("version"),
             "loaded": self.loaded(), "auto_load": hasattr(self.engine, "restart"),
             "structured_output": {"formats": ["json_object", "json_schema"], "method": "prompt_and_validate",
                                   "constrained_decoding": False, "stream_buffered": True},
@@ -9098,6 +9107,9 @@ def main(argv=None, *, lifecycle_event=None, interrupt_exit_code: int = 0) -> in
     from serve.keepawake import KeepAwake
     svc.keep_awake = KeepAwake.create(cfg.get("prevent_sleep") is True)      # #1727: opt-in, Windows only
     if cfg.get("reasoning_effort") is not None:         # #1641: the thinking level of requests that name none
+        if getattr(svc, "family", None) == "deepseek41" and isinstance(cfg["reasoning_effort"], str) and \
+                cfg["reasoning_effort"].strip().lower() in ("medium", "middle", "normal", "none", "minimal"):
+            cfg["reasoning_effort"] = "high"        # BSAI: 0.1.56 rejects medium/none, accepts low/high/max
         try:
             svc.config_effort = clean_shared_defaults({"reasoning_effort": cfg["reasoning_effort"]}).get("reasoning_effort")
         except ValueError as e:
