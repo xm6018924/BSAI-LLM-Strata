@@ -93,8 +93,9 @@ _STRATA_SEARCH_PATHS = [
     r"D:\Strata",
     r"E:\Strata",
     r"F:\Strata",
-    r"G:\BSAI-ComfyUI-intel-XPU-GPU-NPU-aki\Strata",
-    r"G:\BSAI\Strata",
+    # 整合包根下的 Strata（相对定位，随目录整体搬迁仍有效）
+    os.path.join(_PLUGIN_DIR, "..", "..", "..", "..", "Strata"),
+    os.path.join(_PLUGIN_DIR, "..", "..", "..", "..", "BSAI", "Strata"),
     os.path.expanduser(r"~\Strata"),
     os.path.expanduser(r"~\ProgramMine\Strata"),
 ]
@@ -1019,11 +1020,14 @@ if errorlevel 1 pause
                                  "nvidia", "cu13", "bin", "x86_64")
         if os.path.isdir(venv_cuda):
             cuda_lib_dirs.append(venv_cuda)
+        # 引擎目录自带 cublas64_13/cublasLt64_13，实测 `strata.exe --version` 可独立运行；
+        # 作为不依赖任何 venv 的兜底，永远把它排在最后
+        cuda_lib_dirs.append(os.path.join(install, "engine"))
         # Deduplicate
         cuda_lib_dirs = list(dict.fromkeys(cuda_lib_dirs))
         if not cuda_lib_dirs:
-            # Fallback to expected path
-            cuda_lib_dirs = [venv_cuda]
+            # Fallback to the engine directory
+            cuda_lib_dirs = [os.path.join(install, "engine")]
 
         # Read existing json to preserve user-tuned args
         cfg = {}
@@ -1099,6 +1103,32 @@ if errorlevel 1 pause
             "gpu": 0,
             "lib_dirs": cuda_lib_dirs,
         }
+
+        # ---- 全部改成相对路径：整包换盘/换目录后仍可直接启动 ----
+        # 整合包根 = Strata 往上 4 层（Strata → BSAI-LLM-Strata → custom_nodes → ComfyUI → 包根）
+        pkg_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(install))))
+
+        def _rel(p):
+            if not isinstance(p, str) or not p or p.startswith("-"):
+                return p
+            try:
+                ap = os.path.abspath(p)
+                if os.path.isabs(p) and ap.startswith(pkg_root + os.sep):
+                    r = os.path.relpath(ap, install)
+                    return "." if r == "." else r
+            except Exception:
+                pass
+            return p
+
+        new_cfg["args"] = [_rel(a) for a in new_args]
+        new_cfg["cwd"] = _rel(install)
+        new_cfg["exe"] = _rel(strata_exe)
+        new_cfg["log"] = _rel(log_path)
+        new_cfg["tokenizer"] = _rel(tokenizer_dir)
+        new_cfg["lib_dirs"] = [_rel(x) for x in cuda_lib_dirs]
+        for _k in ("model", "exe", "mmproj"):
+            if new_cfg["vision"].get(_k):
+                new_cfg["vision"][_k] = _rel(new_cfg["vision"][_k])
 
         try:
             with open(json_path, "w", encoding="utf-8") as f:

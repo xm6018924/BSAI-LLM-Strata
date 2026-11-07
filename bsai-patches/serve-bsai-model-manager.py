@@ -175,9 +175,21 @@ def _pids_listening_on(port):
     """返回正在 LISTEN 指定 TCP 端口的 PID 集合。"""
     pids = set()
     try:
+        # 中文 Windows 的 netstat 以 GBK/OEM 输出；本机 PYTHONUTF8=1 时 text=True 会按 UTF-8
+        # 解码而抛 UnicodeDecodeError（读取线程异常后 stdout 变成 None，进而 AttributeError）。
+        # 这里显式给 encoding + errors="replace"：Windows 用 OEM 代码页，其余用 locale。
+        enc = "oem" if os.name == "nt" else "utf-8"
         out = subprocess.run(["netstat", "-ano", "-p", "TCP"],
-                             capture_output=True, text=True).stdout
+                             capture_output=True, text=True,
+                             encoding=enc, errors="replace").stdout
     except Exception:
+        try:
+            out = subprocess.run(["netstat", "-ano", "-p", "TCP"],
+                                 capture_output=True, text=True,
+                                 errors="replace").stdout
+        except Exception:
+            return pids
+    if not out:
         return pids
     for line in out.splitlines():
         parts = line.split()
@@ -379,11 +391,16 @@ def start_strata(model_name):
             if not isinstance(cfg_m.get("mcp_servers"), dict) or not cfg_m.get("mcp_servers"):
                 ws = INSTALL_DIR / "tools" / "ddg_websearch_mcp.py"
                 if ws.is_file():
+                    _py = sys.executable
+                    try:
+                        _py = os.path.relpath(_py, str(INSTALL_DIR))
+                    except Exception:
+                        pass
                     cfg_m["mcp_servers"] = {"websearch": {
-                        "command": sys.executable,
-                        "args": ["-u", str(ws)],
+                        "command": _py,
+                        "args": ["-u", os.path.join("tools", ws.name)],
                         "env": {},
-                        "cwd": str(INSTALL_DIR),
+                        "cwd": ".",
                     }}
                     json_file.write_text(
                         json.dumps(cfg_m, indent=4, ensure_ascii=False),
