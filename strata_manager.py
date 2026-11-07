@@ -364,7 +364,7 @@ class StrataManager:
             else:
                 # Auto-install missing dependencies using Tsinghua mirror
                 print("[BSAI-LLM-Strata] 检测到缺少依赖，正在自动安装 ...")
-                deps = "numpy jinja2 pyyaml tqdm requests cmake ninja pillow psutil markupsafe certifi charset-normalizer idna urllib3 colorama regex"
+                deps = "numpy jinja2 pyyaml tqdm requests cmake ninja pillow psutil markupsafe certifi charset-normalizer idna urllib3 colorama regex".split()
                 env = os.environ.copy()
                 env["PIP_INDEX_URL"] = "https://pypi.tuna.tsinghua.edu.cn/simple"
                 env["PIP_TRUSTED_HOST"] = "pypi.tuna.tsinghua.edu.cn"
@@ -872,9 +872,7 @@ if errorlevel 1 pause
     # ---------- ensure running (manual launcher mode: never auto-spawn) ----------
     @classmethod
     def ensure_running(cls, wait_timeout=240.0, poll_interval=3.0, quant_label=None):
-        """Block until Strata is reachable. If not running, refresh the json config
-        and return a pointer to the BSAI_Strata服务.bat launcher — the engine is
-        NEVER auto-spawned; it starts only when the user double-clicks the bat.
+        """Block until Strata is reachable, auto-starting the service when needed.
 
         Returns (ok, message). Called by any BSAI node before hitting /v1.
         """
@@ -882,8 +880,7 @@ if errorlevel 1 pause
         if h.get("ok"):
             return True, "already_running"
 
-        # Not up — keep config fresh so the launcher can start immediately,
-        # then hand control to the user (manual launch only).
+        # Not up — keep config fresh so the launcher starts with correct paths.
         label = quant_label or cls.get_preferred_quant()
         if label == "Auto (自动适配)":
             label = cls.detect_best_quant()
@@ -891,10 +888,30 @@ if errorlevel 1 pause
         if not ok_gen:
             print(f"[BSAI-LLM-Strata] Warning: json config refresh failed: {msg_gen}")
         launcher = os.path.join(cls._package_root() or "", cls._LAUNCHER_BAT_NAME)
-        if launcher and os.path.exists(launcher):
-            print(f"[BSAI-LLM-Strata] Strata 服务未运行——请双击启动器手动启动: {launcher}")
-            return False, f"Strata 服务未运行。请双击 {launcher} 启动，等待模型加载完成后再运行本节点。"
-        return False, "Strata 服务未运行，且未找到 BSAI_Strata服务.bat 启动器。请检查插件安装。"
+        if not (launcher and os.path.exists(launcher)):
+            return False, "Strata 服务未运行，且未找到 BSAI_Strata服务.bat 启动器。请检查插件安装。"
+        # v2.9.3: 原来这里只让用户手动双击启动器。改为自动拉起并轮询到就绪
+        # (首次加载 125B MoE 需 1-3 分钟, 因此按 wait_timeout 等待)。
+        if not (cls._proc is not None and cls._proc.poll() is None):
+            import subprocess as _sp
+            flags = _sp.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0
+            try:
+                cls._proc = _sp.Popen(
+                    ["cmd.exe", "/c", launcher],
+                    cwd=os.path.dirname(launcher),
+                    creationflags=flags,
+                    close_fds=True,
+                )
+                print(f"[BSAI-LLM-Strata] Strata 服务未运行，已自动启动: {launcher} (pid {cls._proc.pid})")
+            except Exception as e:
+                return False, f"自动启动 Strata 失败: {type(e).__name__}: {e}"
+        import time as _t
+        deadline = _t.time() + wait_timeout
+        while _t.time() < deadline:
+            _t.sleep(poll_interval)
+            if cls.health(timeout=1.0).get("ok"):
+                return True, "auto_started"
+        return False, "Strata 已自动启动，但等待就绪超时（模型可能仍在加载，稍后重试本节点即可）。"
 
     # ---------- spawn ----------
     @classmethod
@@ -1168,7 +1185,8 @@ if errorlevel 1 pause
 # ---------------------------------------------------------------------------
 NINFER_HOST = "127.0.0.1"
 NINFER_PORT = 8081
-NINFER_PORT_RANGE = 10  # scan 8081..8090 for a free port
+NINFER_PORT_RANGE = 100  # 扫 8081..8180：Windows 会把成段端口留给 Hyper-V/WSL（排除范围），
+                         # 落在排除段里 bind 会直接失败，窗口放宽才能绕开
 NINFER_BASE_URL = f"http://{NINFER_HOST}:{NINFER_PORT}/v1"
 
 # ---------------------------------------------------------------------------
@@ -1211,6 +1229,25 @@ FLINT_DEFAULT_CONTEXT = int(os.environ.get("BSAI_FLINT_CTX", "65536"))
 _CUSTOM_NODES_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+def _decode_console_bytes(raw):
+    """Decode Windows CLI output that may be emitted in the console code page.
+
+    中文 Windows 的 nvidia-smi / netstat / tasklist 会按 GBK 输出；ComfyUI 以
+    UTF-8 模式运行时，subprocess 的 text=True 会让读取线程抛 UnicodeDecodeError
+    并直接死掉，输出丢失后调用方只能走到 except 分支（例如按错误架构选引擎）。
+    """
+    if not raw:
+        return ""
+    if isinstance(raw, str):
+        return raw
+    for _enc in ("utf-8", "gbk", "cp936"):
+        try:
+            return raw.decode(_enc)
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return raw.decode("utf-8", "replace")
+
+
 class NInferManager:
     """Auto-discover the bundled ninfer-serve.exe + first *.ninfer model,
     start it with --vision on a free local port, and health-check /v1/models."""
@@ -1242,33 +1279,90 @@ class NInferManager:
         except Exception:
             return True
 
+    @staticmethod
+    def _port_bindable(port):
+        """True only if we could actually bind 127.0.0.1:port right now.
+
+        A failed connect() does NOT mean the port is usable: Windows reserves
+        blocks of ports for Hyper-V/WSL (netsh int ipv4 show excludedportrange),
+        and binding inside such a block fails with WSAEACCES while nothing is
+        listening on it. Only a real bind tells the truth — otherwise the
+        engine dies with "cannot bind 127.0.0.1:8081".
+        """
+        s = None
+        try:
+            s = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+            s.bind((NINFER_HOST, int(port)))
+            return True
+        except Exception:
+            return False
+        finally:
+            if s is not None:
+                try:
+                    s.close()
+                except Exception:
+                    pass
+
     @classmethod
     def _resolve_free_port(cls):
-        if cls._active_port and cls._port_free(cls._active_port):
+        if cls._active_port and cls._port_bindable(cls._active_port):
             return cls._active_port
         for p in range(NINFER_PORT, NINFER_PORT + NINFER_PORT_RANGE):
-            if cls._port_free(p):
+            if cls._port_bindable(p):
                 cls._active_port = p
                 return p
+        # Nothing in our window is bindable (excluded ranges can be wider than
+        # the scan window): ask the OS for an ephemeral port and use that.
+        try:
+            s = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+            s.bind((NINFER_HOST, 0))
+            p = s.getsockname()[1]
+            s.close()
+            cls._active_port = p
+            return p
+        except Exception:
+            pass
         cls._active_port = NINFER_PORT
         return NINFER_PORT
 
     # ---------- discovery ----------
     @classmethod
+    def model_engine_dirs(cls):
+        """models/LLM 下直接带 ninfer-serve.exe 的子目录（引擎与模型同放）。
+
+        自建引擎（例如 4090 上为 IQ3_XXS 布局重编的 sm89 构建）没有 smXX 子目录，
+        通常和它专属的 .ninfer 产物放在同一个模型目录里，这里作为最高优先级来源。
+        """
+        out = []
+        llm_root = os.path.join(folder_paths.models_dir, "LLM")
+        try:
+            for name in sorted(os.listdir(llm_root)):
+                d = os.path.join(llm_root, name)
+                if os.path.isdir(d) and os.path.exists(os.path.join(d, "ninfer-serve.exe")):
+                    out.append(d)
+        except OSError:
+            pass
+        return out
+
+    @classmethod
     def engine_dir(cls):
-        """Return the directory holding ninfer-sm<XX>/ + runtime/, or None.
+        """Return the directory holding the NInfer engine, or None.
 
         The engine binaries are too large for git, so they are not redistributed
         with any BSAI plugin. Look for them in order:
           1) $BSAI_NINFER_ENGINE_DIR
-          2) BSAI-FLUX3-ComfyUI/engine/   (bundled copy, when present)
-          3) ComfyUI-AIManzi-MultimodalPrompt/engine/  (upstream source)
-          4) any custom_nodes/*/engine/ that already contains ninfer-serve.exe
+          2) ComfyUI/models/LLM/<dir>/  (self-built engine living next to its model)
+          3) BSAI-FLUX3-ComfyUI/engine/   (bundled copy, when present)
+          4) ComfyUI-AIManzi-MultimodalPrompt/engine/  (upstream source)
+          5) any custom_nodes/*/engine/ that already contains ninfer-serve.exe
+        A candidate qualifies when it holds ninfer-serve.exe either directly or
+        under a ninfer-sm89/ · ninfer-sm120/ profile directory.
         """
         cands = []
         env_dir = os.environ.get("BSAI_NINFER_ENGINE_DIR", "").strip()
         if env_dir:
             cands.append(env_dir)
+        cands.extend(cls.model_engine_dirs())
         cands.append(os.path.join(_CUSTOM_NODES_ROOT, "BSAI-FLUX3-ComfyUI", "engine"))
         cands.append(os.path.join(_CUSTOM_NODES_ROOT,
                                   "ComfyUI-AIManzi-MultimodalPrompt", "engine"))
@@ -1278,55 +1372,85 @@ class NInferManager:
         except OSError:
             pass
         for d in cands:
-            for sub in ("ninfer-sm120", "ninfer-sm89"):
+            if os.path.exists(os.path.join(d, "ninfer-serve.exe")):
+                return d
+            for sub in ("ninfer-sm89", "ninfer-sm120"):
                 if os.path.exists(os.path.join(d, sub, "ninfer-serve.exe")):
                     return d
         return None
 
     @classmethod
     def find_engine(cls):
-        """Return the ninfer-serve.exe path for this GPU, or None."""
+        """Return the ninfer-serve.exe path for this GPU, or None.
+
+        A self-built engine can sit directly in the engine directory (used by
+        4090/IQ3 users who ported their own build), otherwise the sm89/sm120
+        profile subdirectories are used. Match the profile to this GPU's
+        compute capability so an sm120 binary is never launched on Ada (it
+        aborts with "requires compute capability 12.0").
+        """
         if cls._detected_engine:
             return cls._detected_engine
         engine_root = cls.engine_dir()
         if not engine_root:
             return None
-        # Pick sm120 for RTX 50-series, sm89 for RTX 40-series
-        profile = None
+        cap = None
         try:
             out = subprocess.run(
                 ["nvidia-smi", "--query-gpu=compute_cap", "--format=csv,noheader"],
-                capture_output=True, text=True, timeout=5,
+                capture_output=True, timeout=5,
             )
-            cap = float(out.stdout.strip().splitlines()[0])
-            if cap >= 12.0:
-                profile = "ninfer-sm120"
-            elif cap >= 8.9:
-                profile = "ninfer-sm89"
+            caps = _decode_console_bytes(out.stdout).strip().splitlines()
+            cap = float(caps[0].strip())
         except Exception:
             pass
-        if not profile:
-            for cand in ("ninfer-sm120", "ninfer-sm89"):
-                exe = os.path.join(engine_root, cand, "ninfer-serve.exe")
-                if os.path.exists(exe):
-                    profile = cand
-                    break
-        if not profile:
-            return None
-        exe = os.path.join(engine_root, profile, "ninfer-serve.exe")
-        if os.path.exists(exe):
-            cls._detected_engine = exe
-            return exe
+        blackwell = bool(cap is not None and cap >= 12.0)
+        candidates = []
+        direct = os.path.join(engine_root, "ninfer-serve.exe")
+        if os.path.exists(direct) and not blackwell:
+            # 目录里直接放的引擎是自建 sm89 构建，只对 Ada/Ampere 有效。
+            candidates.append(direct)
+        profiles = ("ninfer-sm120", "ninfer-sm89") if blackwell else ("ninfer-sm89", "ninfer-sm120")
+        for sub in profiles:
+            exe = os.path.join(engine_root, sub, "ninfer-serve.exe")
+            if os.path.exists(exe):
+                candidates.append(exe)
+        if os.path.exists(direct) and direct not in candidates:
+            candidates.append(direct)
+        if candidates:
+            cls._detected_engine = candidates[0]
+            return cls._detected_engine
         return None
 
     @classmethod
     def find_model(cls):
-        """Return the first *.ninfer model under ComfyUI/models/LLM, or None."""
+        """Return a *.ninfer model under ComfyUI/models/LLM, or None.
+
+        Models sitting in the engine's own directory win the auto pick: a
+        self-built engine is placed next to the artifact it was compiled for,
+        while other artifacts in models/LLM may need a layout or architecture
+        this engine cannot decode (nvfp4 needs SM120, PQ2 needs the ternary
+        build, etc.).
+        """
         if cls._detected_model:
             return cls._detected_model
         lst = cls.list_models()
         if not lst:
             return None
+        engine_root = cls.engine_dir()
+        if engine_root:
+            try:
+                root_abs = os.path.abspath(engine_root).lower()
+            except Exception:
+                root_abs = ""
+            for _rel, abs_p in lst:
+                try:
+                    bar = os.path.abspath(abs_p).lower()
+                except Exception:
+                    continue
+                if root_abs and os.path.dirname(bar).startswith(root_abs):
+                    cls._detected_model = abs_p
+                    return abs_p
         cls._detected_model = lst[0][1]
         return cls._detected_model
 
