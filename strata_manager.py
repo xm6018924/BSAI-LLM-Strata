@@ -88,7 +88,6 @@ DEFAULT_STRATA_MODEL = "qwen3.8-flash-next"
 _PLUGIN_DIR = os.path.dirname(os.path.abspath(__file__))
 _STRATA_SEARCH_PATHS = [
     os.path.join(_PLUGIN_DIR, "Strata"),  # bundled runtime
-    r"G:\Strata",
     r"C:\Strata",
     r"D:\Strata",
     r"E:\Strata",
@@ -131,6 +130,31 @@ _PREF_QUANT_FILE = os.path.join(_PLUGIN_DIR, ".preferred_quant.txt")
 # ---------------------------------------------------------------------------
 # StrataManager
 # ---------------------------------------------------------------------------
+def _bsai_engine_dir(base):
+    """按 BSAI-llama.cpp 的 engine-selection.json 返回选中的 llama.cpp 引擎目录。
+
+    BSAI-llama.cpp 会按“显卡算力 + 驱动版本”在 CUDA 13 与 CUDA 12.4 两套构建之间
+    选择，并把结果写进 engine-selection.json。这里读取它，避免 Strata 侧在不同代次
+    显卡上写死同一个构建（30 系 / 20 系老驱动机器需要 CUDA 12.4 构建）。
+    """
+    import json as _json
+    sel = os.path.join(base, "engine-selection.json")
+    if not os.path.isfile(sel):
+        return base
+    try:
+        with open(sel, "r", encoding="utf-8") as f:
+            data = _json.load(f)
+        rel = str(data.get("selected") or ".")
+    except Exception:
+        return base
+    if rel in (".", "", "None", "none"):
+        return base
+    cand = os.path.join(base, rel)
+    if os.path.isfile(os.path.join(cand, "llama-server.exe")):
+        return cand
+    return base
+
+
 class StrataManager:
     """Lightweight manager: probe health, optionally spawn Strata if a
     run-<quant>.bat script is found. We do NOT auto-spawn by default because
@@ -978,8 +1002,22 @@ if errorlevel 1 pause
         if not gguf_dir:
             # Fallback to expected subdir
             gguf_dir = os.path.join(STRATA_MODEL_DIR, quant_upper)
+        # C 盘独立副本优先：models\LLM_C\<模型名>\<量化> 里有 gguf 就用它，
+        # 这样配置里的模型路径全部落在 C 盘，不依赖 G 盘目录联接。
+        c_model_root = os.path.join(folder_paths.models_dir, "LLM_C",
+                                    os.path.basename(STRATA_MODEL_DIR))
+        c_quant_dir = os.path.join(c_model_root, quant_upper)
+        if os.path.isdir(c_quant_dir) and any(
+                f.endswith(".gguf") and not f.startswith("mmproj-")
+                for f in os.listdir(c_quant_dir)):
+            gguf_dir = c_quant_dir
+
         if not os.path.isdir(gguf_dir):
             return False, f"gguf dir not found: {gguf_dir}"
+        model_root = os.path.dirname(gguf_dir)
+        data_root = os.path.join(model_root, "Strata-data")
+        if not os.path.isdir(data_root):
+            data_root = STRATA_DATA_DIR
         ggufs = sorted([f for f in os.listdir(gguf_dir)
                         if f.endswith(".gguf") and not f.startswith("mmproj-")
                         and not f.endswith(".done")])
@@ -990,15 +1028,15 @@ if errorlevel 1 pause
 
         # Locate mmproj
         mmproj = None
-        for f in os.listdir(STRATA_MODEL_DIR):
+        for f in os.listdir(model_root):
             if f.startswith("mmproj-") and f.endswith(".gguf"):
-                mmproj = os.path.join(STRATA_MODEL_DIR, f)
+                mmproj = os.path.join(model_root, f)
                 break
 
         # Build paths
-        pack_dir = os.path.join(STRATA_DATA_DIR, "packs", quant_lower)
+        pack_dir = os.path.join(data_root, "packs", quant_lower)
         expert_profile = os.path.join(install, "data", "expert-profile.bin")
-        mtp_dir = os.path.join(STRATA_DATA_DIR, "mtp", "rt")
+        mtp_dir = os.path.join(data_root, "mtp", "rt")
         tokenizer_dir = os.path.join(pack_dir, "tokenizer")
         strata_exe = os.path.join(install, "engine", "strata.exe")
         strata_vision_exe = os.path.join(install, "engine", "strata-vision.exe")
@@ -1103,6 +1141,31 @@ if errorlevel 1 pause
             "gpu": 0,
             "lib_dirs": cuda_lib_dirs,
         }
+
+        # 保留已有 MCP 工具（websearch / web-fetch 等），刷新配置时不能把它们丢掉
+        mcp = cfg.get("mcp_servers")
+        if not isinstance(mcp, dict):
+            mcp = {}
+        _tools = os.path.join(install, "tools")
+        try:
+            _py_rel = os.path.relpath(sys.executable, install)
+        except Exception:
+            _py_rel = sys.executable
+        if "websearch" not in mcp and os.path.isfile(os.path.join(_tools, "ddg_websearch_mcp.py")):
+            mcp["websearch"] = {
+                "command": _py_rel,
+                "args": ["-u", os.path.join("tools", "ddg_websearch_mcp.py")],
+                "env": {},
+                "cwd": ".",
+            }
+        if "web-fetch" not in mcp and os.path.isfile(os.path.join(_tools, "web_fetch_mcp.py")):
+            mcp["web-fetch"] = {
+                "command": _py_rel,
+                "args": ["-u", os.path.join("tools", "web_fetch_mcp.py")],
+                "env": {"WEB_FETCH_SKILL": os.path.join("skills", "web-fetch")},
+                "cwd": ".",
+            }
+        new_cfg["mcp_servers"] = mcp
 
         # ---- 全部改成相对路径：整包换盘/换目录后仍可直接启动 ----
         # 整合包根 = Strata 往上 4 层（Strata → BSAI-LLM-Strata → custom_nodes → ComfyUI → 包根）
@@ -1404,7 +1467,7 @@ class NInferManager:
         for d in cands:
             if os.path.exists(os.path.join(d, "ninfer-serve.exe")):
                 return d
-            for sub in ("ninfer-sm89", "ninfer-sm120"):
+            for sub in ("ninfer-sm86", "ninfer-sm89", "ninfer-sm120"):
                 if os.path.exists(os.path.join(d, sub, "ninfer-serve.exe")):
                     return d
         return None
@@ -1434,22 +1497,24 @@ class NInferManager:
             cap = float(caps[0].strip())
         except Exception:
             pass
-        blackwell = bool(cap is not None and cap >= 12.0)
+        # 算力 → profile 名（12.0 -> ninfer-sm120, 8.6 -> ninfer-sm86 ...）。
+        sm = int(round(cap * 10)) if cap is not None else 0
         candidates = []
+        if sm:
+            exact = os.path.join(engine_root, "ninfer-sm%d" % sm, "ninfer-serve.exe")
+            if os.path.exists(exact):
+                candidates.append(exact)
         direct = os.path.join(engine_root, "ninfer-serve.exe")
-        if os.path.exists(direct) and not blackwell:
-            # 目录里直接放的引擎是自建 sm89 构建，只对 Ada/Ampere 有效。
+        if os.path.exists(direct):
+            # 目录里直接放的引擎是自建构建（作者按自己的卡编译），放在候选末尾兜底。
             candidates.append(direct)
-        profiles = ("ninfer-sm120", "ninfer-sm89") if blackwell else ("ninfer-sm89", "ninfer-sm120")
-        for sub in profiles:
-            exe = os.path.join(engine_root, sub, "ninfer-serve.exe")
-            if os.path.exists(exe):
-                candidates.append(exe)
-        if os.path.exists(direct) and direct not in candidates:
-            candidates.append(direct)
+        # 没有本卡算力的 profile 时，绝不跨代硬跑：sm89 二进制在 30 系 (8.6) 上
+        # 会以 "requires compute capability 8.9" 直接 abort，且报错很晚才出现。
         if candidates:
             cls._detected_engine = candidates[0]
+            cls._engine_cap = sm
             return cls._detected_engine
+        cls._engine_cap = sm
         return None
 
     @classmethod
@@ -1577,6 +1642,16 @@ class NInferManager:
                 return True, f"already_running @{cls._active_port} ({os.path.basename(target)})"
             engine = cls.find_engine()
             if not engine:
+                sm = getattr(cls, "_engine_cap", 0) or 0
+                if sm and 75 <= sm <= 89 and not os.path.exists(os.path.join(
+                        cls.engine_dir() or "", "ninfer-sm%d" % sm, "ninfer-serve.exe")):
+                    return False, ("当前显卡算力为 sm_%d，但 NInfer 上游只提供 "
+                                   "ninfer-sm89 / ninfer-sm120 两套构建（无 sm_%d 版本），"
+                                   "跨代硬跑会在加载后直接 abort。请在该机器上改用 "
+                                   "BSAI Qwen/Prompt 节点的 “llama.cpp (local GGUF)” 后端，"
+                                   "models/LLM 下已有对应 GGUF 权重；或把自建的 "
+                                   "ninfer-sm%d/ninfer-serve.exe 放进 engine 目录。"
+                                   % (sm, sm, sm))
                 return False, ("ninfer-serve.exe 未找到。NInfer 引擎体积过大，不随插件一起分发："
                                "请安装 ComfyUI-AIManzi-MultimodalPrompt 插件（自带 engine/），"
                                "或把 engine/ 目录放到 custom_nodes/BSAI-FLUX3-ComfyUI/engine，"
@@ -1755,7 +1830,7 @@ class NemotronManager:
         for rel in ("BSAI-llama.cpp", "llama.cpp"):
             cand = os.path.join(_CUSTOM_NODES_ROOT, rel)
             if os.path.isdir(cand):
-                return cand
+                return _bsai_engine_dir(cand)
         return bundled
 
     @classmethod
@@ -2013,13 +2088,13 @@ class FlintManager:
         for rel in ("BSAI-llama.cpp", "llama.cpp"):
             cand = os.path.join(_CUSTOM_NODES_ROOT, rel)
             if os.path.isdir(cand):
-                return cand
+                return _bsai_engine_dir(cand)
         # 整合包根：本文件位于 <root>/ComfyUI/custom_nodes/BSAI-LLM-Strata/strata_manager.py
         integration_root = os.path.dirname(os.path.dirname(os.path.dirname(_PLUGIN_DIR)))
         for rel in ("BSAI-llama.cpp", "llama.cpp"):
             cand = os.path.join(integration_root, rel)
             if os.path.isdir(cand):
-                return cand
+                return _bsai_engine_dir(cand)
         return bundled
 
     @classmethod

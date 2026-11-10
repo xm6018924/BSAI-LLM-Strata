@@ -44,11 +44,30 @@ def _integration_root():
     return p
 
 
+def _pick_engine_dir(base):
+    """BSAI-llama.cpp 按显卡算力/驱动选出的子目录（CUDA 13 / CUDA 12.4 双构建）。"""
+    sel = base / "engine-selection.json"
+    if not sel.is_file():
+        return base
+    try:
+        import json
+        rel = str(json.loads(sel.read_text(encoding="utf-8")).get("selected") or ".")
+    except Exception:
+        return base
+    if rel in (".", "", "None", "none"):
+        return base
+    cand = base / rel
+    return cand if (cand / "llama-server.exe").exists() else base
+
+
 def _find_llama_server():
     """在整合包根下寻找移植的 llama-server.exe（优先 BSAI-llama.cpp）。"""
     root = _integration_root()
     for rel in ("BSAI-llama.cpp", "llama.cpp"):
-        cand = root / rel / "llama-server.exe"
+        base = root / rel
+        if not base.exists():
+            continue
+        cand = _pick_engine_dir(base) / "llama-server.exe"
         if cand.exists():
             return str(cand)
     raise FileNotFoundError(
