@@ -1636,7 +1636,7 @@ async function initBottomModelSwitcher() {
           const relPath = firstFile.webkitRelativePath;
           const folderName = relPath.split("/")[0];
           if (folderName) {
-            document.getElementById("work-dir").value = "G:\\BSAI-Workspace\\" + folderName;
+            document.getElementById("work-dir").value = "C:\\BSAI\\BSAI-Workspace\\" + folderName;
           }
         }
       });

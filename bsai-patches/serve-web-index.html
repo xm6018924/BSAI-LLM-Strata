@@ -279,7 +279,7 @@
         <div style="margin-top: 16px;">
           <div style="font-size: 13px; color: #888; margin-bottom: 8px;">📁 工作目录（AI可以读写这个文件夹）：</div>
           <div style="display: flex; gap: 8px;">
-            <input type="text" id="work-dir" value="G:\\BSAI-Workspace" style="
+            <input type="text" id="work-dir" value="C:\BSAI\BSAI-Workspace" style="
               flex: 1; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);
               border-radius: 6px; padding: 8px 12px; color: white; font-size: 13px;
             ">
@@ -507,6 +507,19 @@
             </div>
           </div>
           <div style="font-size: 12px; color: #888; margin-bottom: 12px;">上传音频生成波形图，反推音乐风格、氛围、乐器描述</div>
+          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 16px;">已安装</button>
+        </div>
+        
+        <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px;">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <div style="width: 48px; height: 48px; border-radius: 10px; background: rgba(0,212,255,0.15); display: flex; align-items: center; justify-content: center; font-size: 24px;">🌐</div>
+            <div>
+              <div style="font-weight: 600; font-size: 15px;">网页抓取</div>
+              <div style="font-size: 12px; color: #888;">整页全拿 / 按需只取相关部分</div>
+            </div>
+          </div>
+          <div style="font-size: 12px; color: #888; margin-bottom: 8px;">给一个网址：整页正文，或只要相关段落 / 表格 / 大纲 / 元数据；长文按相关性选段，不从尾部硬截</div>
+          <div style="font-size: 11px; color: #666; margin-bottom: 12px;">工具名 web-fetch__fetch_page · web-fetch__fetch_meta</div>
           <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 16px;">已安装</button>
         </div>
       </div>
