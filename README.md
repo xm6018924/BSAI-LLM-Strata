@@ -8,6 +8,24 @@
 
 ## Latest release / 最新版本
 
+### 引擎升级：Strata engine 0.1.60（2026-11-16）/ Engine upgrade: Strata engine 0.1.60
+
+**中文**：按上游 **Strata v0.2.14** 的发布包，Qwen 主引擎已从 0.1.56 升到 **0.1.60**（`strata-engine-0.1.60-windows-x86_64-cuda-cuda13`）。0.2.14 把提示（prompt）的读取换成 Strata 自研 GPU kernel，RTX 5090 上 32K 提示 6851→7870 tok/s，chat 输出 274.0→254.2 tok/s（略降）。本次只替换引擎二进制，**BSAI 工作台（`serve/web/app.js`、`index.html`、`bsai-logo.png`、`bsai_model_manager.py`、`serve/server.py` 的 BSAI 补丁）未动**；源码仍是现有的 v0.2.8 基线，0.1.60 与现有控制层、`strata-*.json` 参数实测兼容。
+
+- **替换两处引擎**：`Strata/engine/` 与 `models/LLM/Qwen3.8-Flash-Next/engine/`。`strata_manager.py` 的 `ensure_strata_engine` 每次启动都会把模型目录的引擎拷回插件，两处必须同版本，否则会被 0.1.56 覆盖。
+- **校验**：`engine-component.json` 的 ed25519 签名校验通过，5 个文件 SHA-256 与官方清单一致；`strata.exe --version` = `strata 0.1.60`；实测启动日志出现 `strata: prompt kernels: ... 45 of 48 layers on the fused kernels`，`/v1/chat/completions` 正常返回。
+- **回滚**：旧引擎在 `Strata/engine/.previous/`（上游同款一代回退位）和 `Strata/engine-bak-0.1.56-20261116/`（完整备份，含 `strata_kq.dll`）；`python setup.py --rollback-engine` 或直接回拷即可。安装包留在 `G:\llama.cpp\strata-0.1.60-engine.tar.gz`。
+- **DeepSeek 引擎不变**：`engine-dsv41` 仍为 0.1.56 —— v0.2.14 未发布 dsv41 资产（0.2.13 的 0.1.59 是最后一版）。
+- **注意**：Intel Arc / DGX Spark 的引擎上游仍停在 0.1.59；v0.2.15 已发布但 Windows 引擎资产缺失，本次按视频对齐 0.2.14。
+
+**English**: The Qwen main engine is upgraded from 0.1.56 to **0.1.60** using upstream **Strata v0.2.14** (`strata-engine-0.1.60-windows-x86_64-cuda-cuda13`). 0.2.14 moves prompt reading onto Strata's own GPU kernels (32K prompts 6851→7870 tok/s on RTX 5090; chat output 274.0→254.2 tok/s). Only the engine binaries were replaced — the BSAI workbench (`serve/web/app.js`, `index.html`, `bsai-logo.png`, `bsai_model_manager.py`, and the BSAI patch in `serve/server.py`) is untouched; the source tree stays on the existing v0.2.8 base and was verified compatible with 0.1.60's control path and `strata-*.json` args.
+
+- **Both copies replaced**: `Strata/engine/` and `models/LLM/Qwen3.8-Flash-Next/engine/`. `ensure_strata_engine` copies the model-dir engine back over the plugin's on every start, so the two must match or 0.1.56 returns.
+- **Verified**: the `engine-component.json` ed25519 signature checks out and all five files match the official SHA-256 list; `strata.exe --version` prints `strata 0.1.60`; a real start logged `strata: prompt kernels: ... 45 of 48 layers on the fused kernels` and `/v1/chat/completions` answered.
+- **Rollback**: the old engine sits in `Strata/engine/.previous/` and `Strata/engine-bak-0.1.56-20261116/` (full backup incl. `strata_kq.dll`); use `python setup.py --rollback-engine` or copy back. Installer kept at `G:\llama.cpp\strata-0.1.60-engine.tar.gz`.
+- **DeepSeek engine unchanged**: `engine-dsv41` stays at 0.1.56 — v0.2.14 ships no dsv41 asset (0.2.13's 0.1.59 is the last).
+- **Note**: Intel Arc / DGX Spark engines stay at 0.1.59 upstream; v0.2.15 exists but its Windows engine assets are missing, so this upgrade follows the video's 0.2.14.
+
 ### v3.1.0 (2026-11-02) — DeepSeek V4.1 Flash / DeepSeek V4.1 Flash 支持
 
 **English**: This release adds **DeepSeek-V4.1-Flash** (`deepseek41` architecture, IST-DAS 2.00 bpw) as a second local model family next to Qwen3.8-Flash-Next. It runs on its own engine (`strata-dsv41` 0.1.55) at `http://127.0.0.1:8083/v1`, so the two backends never fight over a port. Both models are large, so only one stays resident: switching to DeepSeek stops the 8080 Strata engine first (and the other way round) and releases VRAM before loading.
