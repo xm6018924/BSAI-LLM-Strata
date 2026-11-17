@@ -366,25 +366,66 @@ class StrataManager:
         return None
 
     @classmethod
+    def _python_runtime_ok(cls, p):
+        """校验解释器可执行且带 pip。本流程直接用解释器、不建虚拟环境，因此不再要求 venv 模块
+        （整合包嵌入式 Python 常缺 venv.__main__，但 pip 与依赖齐全即可直接运行）。"""
+        try:
+            if not p or not os.path.isfile(p):
+                return False
+            r = subprocess.run([p, "-c", "import sys, pip; print('runtime OK')"],
+                               capture_output=True, text=True, timeout=10)
+            return r.returncode == 0
+        except Exception:
+            return False
+
+    @classmethod
+    def _find_bundled_python(cls):
+        """优先返回整合包内置 Python：先取正在运行 ComfyUI 的解释器（通常即包内 python.exe），
+        再按候选相对路径在包根内探测；找不到返回 None。"""
+        root = cls._package_root()
+        try:
+            exe = sys.executable
+            if exe and os.path.isfile(exe):
+                if not root or os.path.normcase(os.path.abspath(exe)).startswith(
+                        os.path.normcase(os.path.abspath(root))):
+                    return exe
+        except Exception:
+            pass
+        if root:
+            rel = cls._find_python_rel(root)
+            if rel:
+                p = os.path.join(root, rel)
+                if os.path.isfile(p):
+                    return p
+        return None
+
+    @classmethod
     def ensure_strata_venv(cls):
-        """Find system Python and auto-install required dependencies. No venv needed."""
+        """优先使用整合包内置 Python 运行 Strata；内置不可用时回退系统 Python。No venv needed."""
         install = cls.find_install()
         if not install:
             return None
-        # Find system Python
-        sys_python = cls._find_system_python()
+        # 优先整合包内置 Python（随 ComfyUI 一起启动的解释器 / 包内 python\python.exe）
+        sys_python = None
+        py_label = "系统"
+        bundled = cls._find_bundled_python()
+        if bundled and cls._python_runtime_ok(bundled):
+            sys_python = bundled
+            py_label = "整合包"
+        else:
+            sys_python = cls._find_system_python()
         if not sys_python:
-            print("[BSAI-LLM-Strata] 找不到系统 Python 3.10+。")
-            print("[BSAI-LLM-Strata] 请手动安装 Python 3.10+ 后重启 ComfyUI。")
+            print("[BSAI-LLM-Strata] 找不到可用的 Python 3.10+（整合包内置 / 系统均不可用）。")
+            print("[BSAI-LLM-Strata] 请确认整合包 python\\python.exe 完整，或手动安装 Python 3.10+ 后重启 ComfyUI。")
             return None
         # Verify deps are installed
         try:
             r = subprocess.run(
-                [sys_python, "-c", "import numpy, jinja2, yaml, requests; print('deps OK')"],
+                [sys_python, "-c", "import numpy, jinja2, yaml, requests, PIL, tqdm, psutil, regex, markupsafe, colorama; print('deps OK')"],
                 capture_output=True, text=True, timeout=10,
             )
             if r.returncode == 0:
-                print(f"[BSAI-LLM-Strata] 使用系统 Python: {sys_python}")
+                print(f"[BSAI-LLM-Strata] 使用{py_label} Python: {sys_python}")
                 return sys_python
             else:
                 # Auto-install missing dependencies using Tsinghua mirror
