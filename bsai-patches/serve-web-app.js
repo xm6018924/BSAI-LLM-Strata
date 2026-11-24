@@ -738,9 +738,9 @@ function apiMessages() {
   const out = [];
   // Inject current date + web search capability
   const now = new Date();
-  const today = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 星期${['日','一','二','三','四','五','六'][now.getDay()]}`;
-  out.push({role: "system", content: `今天是${today}。你是本地运行的BSAI百声AI助手，用中文回复。回答涉及时间时使用这个真实日期，不要编造时间。
-如果用户需要查最新资讯、最新技术、最近一周的新闻或更新，你可以直接在回答里输出一行：SEARCH: 搜索关键词（用简短的中文关键词），系统会自动用国内必应联网搜索并把结果返回给你，你再基于真实搜索结果整理回答。不要自己编造最近一周的信息，不确定的就主动用SEARCH搜索。`});
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} (${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()]})`;
+  out.push({role: "system", content: `Today is ${today}. You are the BSAI assistant running locally on this PC. Reply in the user's language (English by default). When an answer involves time, use this real date and never invent one.
+If the user needs the latest news, the newest technology, or anything from the past week, you may emit a single line: SEARCH: keywords (short keywords), and the system will run a Bing search and hand you the results to base your answer on. Never invent last-week information - when unsure, use SEARCH.`});
   for (const m of messages) {
     if (m.role === "user") {
       const imgs = (m.images || []).filter((i) => i.url);
@@ -788,7 +788,7 @@ function setBusy(on) {
 
 async function send(autoText, searchDepth = 0) {
   // autoText: a follow-up the page writes itself (the web-search results). send() used to read the composer only,
-  // so that follow-up hit the "nothing typed" guard and returned - the answer stalled right after "正在联网搜索".
+  // so that follow-up hit the "nothing typed" guard and returned - the answer stalled right after "searching the web".
   const auto = autoText != null;
   const text = (auto ? String(autoText) : $("input").value).trim();
   if ((!text && !attachments.length) || busy) return;
@@ -894,7 +894,7 @@ async function send(autoText, searchDepth = 0) {
   const searchMatch = !m.error && m.text.match(/^SEARCH:\s*(.+)$/m);
   if (searchMatch && !m.searchDone && m.searchDepth < 2) {
     const query = searchMatch[1].trim();
-    m.text = m.text.replace(searchMatch[0], "🔍 正在联网搜索: " + query + " ...");
+    m.text = m.text.replace(searchMatch[0], "🔍 Searching the web: " + query + " ...");
     m.searchDone = true;
     updateAssistant(el, m, false);
     scrollDown();
@@ -906,7 +906,7 @@ async function send(autoText, searchDepth = 0) {
       const data = await resp.json();
       clearTimeout(timeoutId);
       if (resp.ok && Array.isArray(data.results) && data.results.length) {
-        searchResult = "【联网搜索结果】\n";
+        searchResult = "[Web search results]\n";
         data.results.forEach((r, i) => {
           searchResult += `${i + 1}. ${r.title}\n${r.snippet || ""}\n${r.url || ""}\n\n`;
         });
@@ -914,8 +914,8 @@ async function send(autoText, searchDepth = 0) {
     } catch (e) { /* manager down / offline: keep going without results instead of dead-ending here */ }
     // Always continue the turn: with the hits, or telling the model it has no fresh results
     const next = searchResult
-      ? `${searchResult}\n请基于以上真实搜索结果，直接整理成最终中文回答给我。不要再输出SEARCH指令了。`
-      : "（联网搜索不可用或没有结果，请基于你自己的知识直接回答上面的问题，并如实说明没有拿到最新联网信息。不要再输出SEARCH指令。）";
+      ? `${searchResult}\nBased on the real search results above, give me the final answer directly. Do not emit SEARCH again.`
+      : "(Web search unavailable or returned nothing. Answer the question from your own knowledge and state plainly that no live results were available. Do not emit SEARCH again.)";
     send(next, m.searchDepth + 1);
     return;
   }
@@ -983,16 +983,16 @@ function addFiles(files) {
           });
           renderAttachments();
           // Auto-fill video reverse prompt template
-          const reversePrompt = `请根据这些视频关键帧，帮我反推出生成这个视频的详细提示词（Prompt）。
+          const reversePrompt = `Using these video keyframes, reverse-engineer a detailed prompt for generating this video.
 
-请按照以下格式输出：
-1. **主体描述**：视频中的主要人物/物体是什么？外观、服装、特征？
-2. **动作与运动**：主体在做什么动作？运动轨迹是怎样的？
-3. **场景环境**：背景是什么场景？室内/室外？有什么物体？
-4. **艺术风格**：画面风格是什么？写实/动漫/油画/赛博朋克等？
-5. **镜头运动**：镜头是固定的？推拉摇移？特写还是全景？
-6. **光影色调**：光线是怎样的？明亮/昏暗？暖色调/冷色调？
-7. **完整Prompt**：把以上所有内容整合成一个可以直接用于 AnimateDiff / SVD 等视频生成模型的完整提示词。`;
+Output in this format:
+1. **Subject**: Who or what is the main subject? Appearance, clothing, distinguishing features?
+2. **Action and motion**: What is the subject doing? What is the motion path?
+3. **Scene**: What is the background? Indoors or outdoors? Which objects?
+4. **Art style**: Realistic, anime, oil painting, cyberpunk, etc.?
+5. **Camera movement**: Static, push/pull/pan/tilt? Close-up or wide shot?
+6. **Light and colour**: Bright or dim? Warm or cool tones?
+7. **Full prompt**: Combine everything above into one complete prompt usable directly with video models such as AnimateDiff or SVD.`;
           $("input").value = reversePrompt;
           autosize();
           $("input").focus();
@@ -1022,16 +1022,16 @@ function addFiles(files) {
         }
         renderAttachments();
         // Auto-fill audio reverse prompt template
-        const reversePrompt = `请根据这个音频文件的信息和波形图，帮我反推出这个音频的详细描述。
+        const reversePrompt = `Using this audio file's information and waveform, describe this audio in detail.
 
-请按照以下格式输出：
-1. **音频类型**：这是什么类型的音频？音乐/歌曲/旁白/音效/环境音/播客？
-2. **时长与节奏**：音频时长？节奏快还是慢？节拍感强不强？
-3. **音色特征**：音色是明亮还是低沉？温暖还是冰冷？饱满还是单薄？
-4. **乐器/声源**：主要有哪些乐器或声源？是人声还是纯音乐？
-5. **情绪氛围**：整体情绪是怎样的？欢快/悲伤/紧张/平静/激昂？
-6. **音乐风格**：如果是音乐，是什么风格？流行/古典/摇滚/电子/民谣？
-7. **完整描述**：把以上所有内容整合成一段详细的音频描述，可以直接用于音频生成模型的提示词。`;
+Output in this format:
+1. **Audio type**: What kind of audio is it? Music, song, narration, sound effect, ambience, podcast?
+2. **Length and tempo**: How long? Fast or slow? Strong sense of beat?
+3. **Timbre**: Bright or low? Warm or cold? Full or thin?
+4. **Instruments/sources**: Which instruments or sources dominate? Vocals or instrumental only?
+5. **Mood**: What is the overall mood? Cheerful, sad, tense, calm, excited?
+6. **Genre**: If it is music, what genre? Pop, classical, rock, electronic, folk?
+7. **Full description**: Combine everything above into a detailed audio description usable directly as a prompt for audio models.`;
         $("input").value = reversePrompt;
         autosize();
         $("input").focus();
@@ -1383,10 +1383,10 @@ async function loadCurrentModel() {
     const j = await r.json();
     if (j.current) {
       highlightCurrentModel(j.current);
-      $("model-status").textContent = `当前模型: ${j.current}`;
+      $("model-status").textContent = `Current model: ${j.current}`;
     }
   } catch (e) {
-    $("model-status").textContent = "模型管理服务未启动，请使用启动脚本启动。";
+    $("model-status").textContent = "The model management service is not running; start it with the launch script.";
   }
 }
 
@@ -1403,7 +1403,7 @@ function highlightCurrentModel(model) {
 }
 
 async function switchModel(model) {
-  if (!confirm(`确定要切换到 ${model} 模型吗？\n引擎将重启，需要等待 1-2 分钟。`)) {
+  if (!confirm(`Switch to the ${model} model?\nThe engine restarts and takes 1-2 minutes.`)) {
     return;
   }
   
@@ -1417,8 +1417,8 @@ async function switchModel(model) {
   `;
   overlay.innerHTML = `
     <div style="font-size: 48px;">🔄</div>
-    <div>正在切换到 ${model} 模型...</div>
-    <div class="wait-text" style="font-size: 16px; color: #888;">模型加载中，请耐心等待...</div>
+    <div>Switching to the ${model} model...</div>
+    <div class="wait-text" style="font-size: 16px; color: #888;">The model is loading, please wait...</div>
   `;
   document.body.appendChild(overlay);
   
@@ -1432,7 +1432,7 @@ async function switchModel(model) {
     if (j.error) throw new Error(j.error);
     
     // Immediately redirect to waiting page on 8081 (never goes down!)
-    // 带上目标模型：Flint -> 等待页轮询 8082 并跳 8082，不影响 8080 的 Strata
+    // carry the target model: Flint polls 8082 on the waiting page and jumps there, without touching Strata on 8080
     setTimeout(() => {
       window.location.href = "http://127.0.0.1:8081/wait?model=" + encodeURIComponent(model);
     }, 500);
@@ -1440,7 +1440,7 @@ async function switchModel(model) {
   } catch (e) {
     overlay.innerHTML = `
       <div style="font-size: 48px;">❌</div>
-      <div>切换失败</div>
+      <div>Switch failed</div>
       <div style="font-size: 16px; color: #888;">${e.message || e}</div>
     `;
   }
@@ -1454,12 +1454,12 @@ loadCurrentModel();
 
 // ========== BSAI Bottom Model Switcher ==========
 const BS_MODELS = {
-  "Q2_0": "🚀 Q2_0 最快",
-  "IQ2_XS": "⚖️ IQ2_XS 平衡",
-  "IQ3_XXS": "🎯 IQ3_XXS 更好",
-  "IQ3_S": "💎 IQ3_S 最好",
-  "flint": "🔧 Flint 40B 编程",
-  "deepseek": "🧠 DeepSeek V4.1 推理",
+  "Q2_0": "🚀 Q2_0 fastest",
+  "IQ2_XS": "⚖️ IQ2_XS balanced",
+  "IQ3_XXS": "🎯 IQ3_XXS better",
+  "IQ3_S": "💎 IQ3_S best",
+  "flint": "🔧 Flint 40B coding",
+  "deepseek": "🧠 DeepSeek V4.1 reasoning",
 };
 
 // Global: load current running model from manager service
@@ -1494,7 +1494,7 @@ async function loadCurrentModel() {
   }
   // Failed after retries
   const sidebarLabel = document.getElementById("bsai-sidebar-model");
-  if (sidebarLabel) sidebarLabel.textContent = "管理服务未启动";
+  if (sidebarLabel) sidebarLabel.textContent = "Management service not running";
   return null;
 }
 
@@ -1602,9 +1602,9 @@ async function initBottomModelSwitcher() {
   if (workStartBtn && workInput && workChatMessages) {
     // Work feature cards
     const featurePrompts = {
-      code: "帮我写一个Python程序，实现：",
-      file: "帮我处理本地文件，完成：",
-      game: "帮我做一个网页小游戏，实现："
+      code: "Write a Python program that: ",
+      file: "Process these local files and: ",
+      game: "Build a browser mini-game that: "
     };
     document.querySelectorAll(".work-feature-card").forEach(card => {
       card.addEventListener("click", () => {
@@ -1649,7 +1649,7 @@ async function initBottomModelSwitcher() {
       execBtn.addEventListener("click", async () => {
         const cmd = execInput.value.trim();
         if (!cmd) {
-          alert("请输入要执行的命令！");
+          alert("Enter the command to run first.");
           return;
         }
         const cwd = document.getElementById("work-dir").value;
@@ -1661,7 +1661,7 @@ async function initBottomModelSwitcher() {
         workChatMessages.appendChild(cmdMsg);
         
         execBtn.disabled = true;
-        execBtn.textContent = "⏳ 执行中...";
+        execBtn.textContent = "⏳ Running...";
         
         try {
           const r = await fetch(`${MANAGER_URL}/api/exec`, {
@@ -1680,7 +1680,7 @@ async function initBottomModelSwitcher() {
             outputHtml += `<div style="background: rgba(255,107,107,0.1); padding: 10px; border-radius: 6px; margin-bottom: 8px; font-family: monospace; font-size: 12px; color: #ff6b6b; white-space: pre-wrap;">${result.stderr}</div>`;
           }
           if (!result.stdout && !result.stderr) {
-            outputHtml = `<div style="font-size: 12px; color: #888;">（命令执行完成，无输出）</div>`;
+            outputHtml = `<div style="font-size: 12px; color: #888;">(command finished with no output)</div>`;
           }
           
           const outMsg = document.createElement("div");
@@ -1692,12 +1692,12 @@ async function initBottomModelSwitcher() {
         } catch (e) {
           const errMsg = document.createElement("div");
           errMsg.style.cssText = "margin-bottom: 16px; margin-left: 20px; color: #ff6b6b; font-size: 13px;";
-          errMsg.textContent = "❌ 执行失败：" + e.message;
+          errMsg.textContent = "❌ Run failed: " + e.message;
           workChatMessages.appendChild(errMsg);
         }
         
         execBtn.disabled = false;
-        execBtn.textContent = "▶️ 执行";
+        execBtn.textContent = "▶️ Run";
         const workChat = document.getElementById("work-chat");
         workChat.scrollTop = workChat.scrollHeight;
       });
@@ -1709,8 +1709,8 @@ async function initBottomModelSwitcher() {
       copyBtn.addEventListener("click", () => {
         const dir = document.getElementById("work-dir").value;
         navigator.clipboard.writeText(dir).then(() => {
-          copyBtn.textContent = "✅ 已复制！";
-          setTimeout(() => { copyBtn.textContent = "📋 复制"; }, 2000);
+          copyBtn.textContent = "✅ Copied!";
+          setTimeout(() => { copyBtn.textContent = "📋 Copy"; }, 2000);
         });
       });
     }
@@ -1718,7 +1718,7 @@ async function initBottomModelSwitcher() {
     workStartBtn.addEventListener("click", async () => {
       const task = workInput.value.trim();
       if (!task) {
-        alert("请先描述你想做什么任务！");
+        alert("Describe the task first.");
         return;
       }
       
@@ -1734,7 +1734,7 @@ async function initBottomModelSwitcher() {
       // Add loading message
       const loadingMsg = document.createElement("div");
       loadingMsg.style.cssText = "margin-bottom: 16px;";
-      loadingMsg.innerHTML = `<div style="display: inline-block; background: rgba(255,255,255,0.05); color: #888; padding: 12px 16px; border-radius: 12px; font-size: 14px;">🤖 AI正在思考中...</div>`;
+      loadingMsg.innerHTML = `<div style="display: inline-block; background: rgba(255,255,255,0.05); color: #888; padding: 12px 16px; border-radius: 12px; font-size: 14px;">🤖 The AI is thinking...</div>`;
       workChatMessages.appendChild(loadingMsg);
       
       // Scroll to bottom
@@ -1749,7 +1749,7 @@ async function initBottomModelSwitcher() {
           body: JSON.stringify({
             model: "qwen3.8-flash-next-q2_0",
             messages: [
-              {role: "system", content: `今天是${new Date().getFullYear()}年${new Date().getMonth()+1}月${new Date().getDate()}日。你是一个专业的编程助手和工作助手。帮用户写代码、做软件、开发游戏、处理文件。用中文回复，代码块用\`\`\`包裹。回答涉及时间时请使用真实当前日期，不要编造时间。`},
+              {role: "system", content: `Today is ${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}. You are a professional coding and work assistant: you write code, build apps, develop games and process files. Reply in the user's language (English by default) and wrap code in \`\`\`. When anything involves time, use the real current date and never invent one.`},
               {role: "user", content: task}
             ],
             temperature: 0.7,
@@ -1764,9 +1764,9 @@ async function initBottomModelSwitcher() {
         if (j.choices && j.choices[0] && j.choices[0].message) {
           reply = j.choices[0].message.content;
         } else if (j.error) {
-          reply = "❌ API错误：" + (j.error.message || j.error);
+          reply = "❌ API error: " + (j.error.message || j.error);
         } else {
-          reply = "❌ 服务器返回异常：" + JSON.stringify(j);
+          reply = "❌ Unexpected server response: " + JSON.stringify(j);
         }
         
         // Remove loading
@@ -1781,7 +1781,7 @@ async function initBottomModelSwitcher() {
             <button class="copy-btn" style="
               background: rgba(255,255,255,0.1); border: none; border-radius: 6px;
               padding: 6px 12px; color: #ccc; font-size: 12px; cursor: pointer;
-            ">📋 复制内容</button>
+            ">📋 Copy</button>
           </div>
         `;
         workChatMessages.appendChild(aiMsg);
@@ -1790,8 +1790,8 @@ async function initBottomModelSwitcher() {
         const copyBtn = aiMsg.querySelector(".copy-btn");
         copyBtn.addEventListener("click", () => {
           navigator.clipboard.writeText(reply).then(() => {
-            copyBtn.textContent = "✅ 已复制！";
-            setTimeout(() => { copyBtn.textContent = "📋 复制内容"; }, 2000);
+            copyBtn.textContent = "✅ Copied!";
+            setTimeout(() => { copyBtn.textContent = "📋 Copy"; }, 2000);
           });
         });
         
@@ -1799,7 +1799,7 @@ async function initBottomModelSwitcher() {
         loadingMsg.remove();
         const errMsg = document.createElement("div");
         errMsg.style.cssText = "margin-bottom: 16px; color: #ff6b6b; font-size: 14px;";
-        errMsg.textContent = "❌ 出错了：" + e.message;
+        errMsg.textContent = "❌ Something went wrong: " + e.message;
         workChatMessages.appendChild(errMsg);
       }
       
@@ -1896,10 +1896,10 @@ function initBsaiSidebar() {
 
   // ===== Template cards: click to fill input =====
   const templates = {
-    "code": "你是一个专业的编程专家。请帮我写代码、调试bug、优化性能。请用清晰的代码块输出，代码后面附上简短说明。",
-    "copy": "你是一个专业的文案写作专家。请帮我写公众号文章、产品文案、短视频脚本。要求文字生动、有感染力、符合中文表达习惯。",
-    "image-reverse": "你是一个AI绘画提示词专家。我会上传图片，请你帮我反推出详细的、适合AI绘画的提示词，包含画面主体、风格、光线、构图、色彩等细节。",
-    "game": "你是一个游戏开发专家。请帮我写一个简单的网页小游戏（HTML+JS+CSS），要求可以直接运行，有游戏结束和分数记录功能。"
+    "code": "You are a professional coding expert. Write code, debug issues and optimise performance for me. Output clean code blocks and add a short explanation after the code.",
+    "copy": "You are a professional copywriter. Write blog posts, product copy and short-video scripts for me. Keep the writing vivid and persuasive, in the language I use.",
+    "image-reverse": "You are an AI-art prompt expert. I will upload an image; reverse-engineer a detailed prompt suitable for AI art, covering subject, style, lighting, composition and colour.",
+    "game": "You are a game development expert. Build a simple browser mini-game (HTML+JS+CSS) that runs as-is, with game-over and score tracking.",
   };
   
   document.querySelectorAll(".template-card").forEach(card => {
@@ -1923,10 +1923,10 @@ function initBsaiSidebar() {
 
   // ===== Assistant cards: click to set role =====
   const assistants = {
-    "coder": "现在请你扮演一个专业的全栈代码专家。你精通Python、JavaScript、HTML/CSS，擅长写代码、调试bug、架构设计、性能优化。请用中文回答，代码用```包裹。",
-    "writer": "现在请你扮演一个专业的文案写作专家。你擅长写公众号文章、产品文案、短视频脚本、营销话术。文字要生动、有感染力，符合中文阅读习惯。",
-    "artist": "现在请你扮演一个AI绘画提示词专家。你擅长根据图片反推提示词，精通各种绘画风格（二次元、写实、电影感、产品图等）。请给出详细的、可直接用于AI绘画的提示词。",
-    "analyst": "现在请你扮演一个数据分析专家。你擅长数据清洗、统计分析、Excel公式、图表设计。请用清晰的步骤解释你的分析过程。"
+    "coder": "Act as a professional full-stack engineer. You know Python, JavaScript and HTML/CSS well and write code, debug issues, design architecture and optimise performance. Reply in the language I use and wrap code in ```.",
+    "writer": "Act as a professional copywriter. You write blog posts, product copy, short-video scripts and marketing copy. Keep the writing vivid and persuasive, in the language I use.",
+    "artist": "Act as an AI-art prompt expert. You reverse-engineer prompts from images and know many art styles (anime, photoreal, cinematic, product shots, etc.). Give detailed prompts that can be used directly for AI art.",
+    "analyst": "Act as a data analysis expert. You are strong in data cleaning, statistical analysis, Excel formulas and chart design. Explain your analysis in clear steps.",
   };
   
   document.querySelectorAll(".assistant-card").forEach(card => {
@@ -1938,7 +1938,7 @@ function initBsaiSidebar() {
       // Fill chat input
       const chatInput = document.getElementById("input");
       if (chatInput) {
-        chatInput.value = text + "\n\n请确认你已经理解这个角色设定，然后等待我的问题。";
+        chatInput.value = text + "\n\nConfirm you understand this role, then wait for my question.";
         chatInput.focus();
       }
       

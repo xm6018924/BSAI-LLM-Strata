@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>BSAI 工作台</title>
+<title>BSAI Workbench</title>
 <link rel="icon" href="web/bsai-logo.png?v=bsai" type="image/png">
 <link rel="stylesheet" href="web/tokens.css?v=bsai">
 <link rel="stylesheet" href="web/components.css?v=bsai">
@@ -46,8 +46,8 @@
   <div style="padding: 20px 16px; border-bottom: 1px solid #2d2d44; display: flex; align-items: center; gap: 10px;">
     <img src="web/bsai-logo.png" alt="BSAI" style="width: 36px; height: 36px; border-radius: 50%;">
     <div>
-      <div style="color: white; font-weight: 600; font-size: 15px;">BSAI 工作台</div>
-      <div style="color: #888; font-size: 11px;">本地AI · 写代码 · 做软件 · 创作</div>
+      <div style="color: white; font-weight: 600; font-size: 15px;">BSAI Workbench</div>
+      <div style="color: #888; font-size: 11px;">Local AI · code · apps · creation</div>
     </div>
   </div>
 
@@ -62,7 +62,7 @@
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M12 5v14M5 12h14"/>
       </svg>
-      <span>新建对话</span>
+      <span>New chat</span>
     </div>
 
     <!-- New Work Task -->
@@ -74,7 +74,7 @@
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/>
       </svg>
-      <span>新建工作</span>
+      <span>New task</span>
     </div>
 
     <!-- Plugin Market -->
@@ -86,7 +86,7 @@
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
       </svg>
-      <span>插件市场</span>
+      <span>Plugin market</span>
     </div>
 
     <!-- My Assistant -->
@@ -98,7 +98,7 @@
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
       </svg>
-      <span>我的助理</span>
+      <span>My assistants</span>
     </div>
 
     <!-- Automation -->
@@ -110,7 +110,7 @@
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
       </svg>
-      <span>自动化</span>
+      <span>Automation</span>
     </div>
 
     <!-- Template Library -->
@@ -122,7 +122,7 @@
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>
       </svg>
-      <span>模板库</span>
+      <span>Templates</span>
     </div>
 
     <!-- My Outputs -->
@@ -134,14 +134,14 @@
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
       </svg>
-      <span>我的产物</span>
+      <span>My outputs</span>
     </div>
   </nav>
 
   <!-- Bottom: Current Model + Quick Switch -->
   <div style="padding: 12px 16px; border-top: 1px solid #2d2d44;">
-    <div style="color: #888; font-size: 11px; margin-bottom: 8px;">当前模型</div>
-    <div id="bsai-sidebar-model" style="color: #00d4ff; font-size: 13px; font-weight: 500; margin-bottom: 10px;">加载中...</div>
+    <div style="color: #888; font-size: 11px; margin-bottom: 8px;">Current model</div>
+    <div id="bsai-sidebar-model" style="color: #00d4ff; font-size: 13px; font-weight: 500; margin-bottom: 10px;">Loading...</div>
     
     <!-- Quick model buttons -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
@@ -169,7 +169,7 @@
         background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.25);
         border-radius: 6px; padding: 6px 8px; color: #00d4ff; font-size: 11px;
         cursor: pointer; text-align: center; grid-column: 1 / -1;
-      ">🔧 Flint 40B 编程</button>
+      ">🔧 Flint 40B coding</button>
       <button class="bsai-quick-model" data-model="deepseek" style="
         background: rgba(124,77,255,0.12); border: 1px solid rgba(124,77,255,0.35);
         border-radius: 6px; padding: 6px 8px; color: #c4b5fd; font-size: 11px;
@@ -184,7 +184,7 @@
 <header class="st-header">
   <span class="st-header__brand" style="display:flex;align-items:center;gap:8px;">
     <img src="web/bsai-logo.png?v=2" alt="BSAI" style="width:32px;height:32px;border-radius:50%;vertical-align:middle;">
-    <strong style="font-size:16px;">百声AI Strata</strong>
+    <strong style="font-size:16px;">BSAI Strata</strong>
   </span>
   <nav class="st-tabs" role="tablist" aria-label="Views">
     <button class="st-tab" role="tab" id="tab-btn-chat" aria-controls="view-chat" aria-selected="true" data-tab="chat">
@@ -231,7 +231,7 @@
           <!-- BSAI Model Switcher -->
           <div class="bsai-model-switcher" style="position: relative; display: inline-block;">
             <button type="button" class="st-btn bsai-model-btn" id="bsai-model-btn" title="Switch model" style="display: flex; align-items: center; gap: 4px; font-size: 12px; padding: 6px 10px;">
-              <span id="bsai-current-model" style="color: #00d4ff;">加载中...</span>
+              <span id="bsai-current-model" style="color: #00d4ff;">Loading...</span>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
             </button>
             <div id="bsai-model-dropdown" class="bsai-model-dropdown" style="
@@ -240,7 +240,7 @@
               min-width: 180px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
               display: none; z-index: 100; overflow: hidden;
             ">
-              <div style="padding: 8px 12px; font-size: 12px; color: #888; border-bottom: 1px solid #333;">切换模型</div>
+              <div style="padding: 8px 12px; font-size: 12px; color: #888; border-bottom: 1px solid #333;">Switch model</div>
               <div id="bsai-model-list" style="padding: 4px 0;">
                 <!-- Model items will be inserted here -->
               </div>
@@ -257,19 +257,19 @@
     </div>
   </section>
 
-  <!-- ============================ New Work / 新工作 ============================ -->
+  <!-- ============================ New Work ============================ -->
   <section class="view view--work" id="view-work" role="tabpanel" aria-labelledby="tab-btn-work" style="display:none; height: calc(100vh - 64px); overflow-y: auto;">
     <div style="max-width: 900px; margin: 0 auto; padding: 40px 20px;">
       <!-- Header -->
       <div style="margin-bottom: 32px;">
-        <h2 style="font-size: 24px; margin-bottom: 8px;">💼 新工作任务</h2>
-        <p style="color: #888; font-size: 14px;">让AI帮你写代码、做软件、开发游戏、创建工具——真正的人机协作！</p>
+        <h2 style="font-size: 24px; margin-bottom: 8px;">💼 New task</h2>
+        <p style="color: #888; font-size: 14px;">Let the AI write code, build apps, develop games and create tools - real human-AI collaboration!</p>
       </div>
 
       <!-- Task Input -->
       <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
-        <div style="font-size: 14px; color: #ccc; margin-bottom: 12px;">📝 描述你想做什么：</div>
-        <textarea id="work-input" rows="4" placeholder="例如：帮我写一个贪吃蛇小游戏，用Python写，要有分数记录和游戏结束提示..." style="
+        <div style="font-size: 14px; color: #ccc; margin-bottom: 12px;">📝 Describe what you want to do:</div>
+        <textarea id="work-input" rows="4" placeholder="For example: write a Snake game in Python, with score tracking and a game-over message..." style="
           width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);
           border-radius: 8px; padding: 12px; color: white; font-size: 14px; resize: vertical;
           font-family: inherit;
@@ -277,35 +277,35 @@
         
         <!-- Working Directory -->
         <div style="margin-top: 16px;">
-          <div style="font-size: 13px; color: #888; margin-bottom: 8px;">📁 工作目录（AI可以读写这个文件夹）：</div>
+          <div style="font-size: 13px; color: #888; margin-bottom: 8px;">📁 Working directory (the AI can read and write this folder):</div>
           <div style="display: flex; gap: 8px;">
             <input type="text" id="work-dir" value="C:\BSAI\BSAI-Workspace" style="
               flex: 1; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);
               border-radius: 6px; padding: 8px 12px; color: white; font-size: 13px;
             ">
             <input type="file" id="work-dir-picker" webkitdirectory directory multiple style="display:none;">
-            <button class="st-btn st-btn--secondary" style="font-size: 13px;" id="work-dir-pick-btn">📂 选择文件夹</button>
-            <button class="st-btn st-btn--secondary" style="font-size: 13px;" id="work-dir-copy-btn">📋 复制</button>
+            <button class="st-btn st-btn--secondary" style="font-size: 13px;" id="work-dir-pick-btn">📂 Choose folder</button>
+            <button class="st-btn st-btn--secondary" style="font-size: 13px;" id="work-dir-copy-btn">📋 Copy</button>
           </div>
-          <div style="font-size: 11px; color: #666; margin-top: 6px;">💡 点"选择文件夹"直接选本地文件夹，或手动修改上面的路径！</div>
+          <div style="font-size: 11px; color: #666; margin-top: 6px;">💡 Click "Choose folder" to pick a local folder, or edit the path above manually!</div>
         </div>
 
         <div style="margin-top: 20px; display: flex; gap: 12px; align-items: center;">
           <button class="st-btn st-btn--primary" id="work-start-btn" style="font-size: 14px; padding: 10px 24px;">
-            🚀 开始工作
+            🚀 Start working
           </button>
-          <span style="font-size: 12px; color: #888;">支持：写代码 · 做软件 · 开发游戏 · 处理文件 · 自动整理</span>
+          <span style="font-size: 12px; color: #888;">Supports: code · apps · games · file handling · auto-organisation</span>
         </div>
         
         <!-- Direct command execution -->
         <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.08);">
-          <div style="font-size: 12px; color: #888; margin-bottom: 8px;">⚡ 直接执行命令（在上面的工作目录里运行）：</div>
+          <div style="font-size: 12px; color: #888; margin-bottom: 8px;">⚡ Run a command directly (in the working directory above):</div>
           <div style="display: flex; gap: 8px;">
-            <input type="text" id="work-exec-input" placeholder="比如: git clone https://github.com/xxx/xxx.git" style="
+            <input type="text" id="work-exec-input" placeholder="e.g. git clone https://github.com/xxx/xxx.git" style="
               flex: 1; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);
               border-radius: 6px; padding: 8px 12px; color: white; font-size: 13px;
             ">
-            <button class="st-btn st-btn--secondary" id="work-exec-btn" style="font-size: 13px;">▶️ 执行</button>
+            <button class="st-btn st-btn--secondary" id="work-exec-btn" style="font-size: 13px;">▶️ Run</button>
           </div>
         </div>
       </div>
@@ -314,18 +314,18 @@
       <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px;">
         <div class="work-feature-card" data-feature="code" style="background: rgba(255,255,255,0.03); border-radius: 10px; padding: 16px; border: 1px solid rgba(255,255,255,0.08); cursor: pointer;">
           <div style="font-size: 24px; margin-bottom: 8px;">💻</div>
-          <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">写代码程序</div>
-          <div style="font-size: 12px; color: #888;">Python、JS、HTML、游戏脚本、小工具</div>
+          <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">Code and programs</div>
+          <div style="font-size: 12px; color: #888;">Python, JS, HTML, game scripts, small tools</div>
         </div>
         <div class="work-feature-card" data-feature="file" style="background: rgba(255,255,255,0.03); border-radius: 10px; padding: 16px; border: 1px solid rgba(255,255,255,0.08); cursor: pointer;">
           <div style="font-size: 24px; margin-bottom: 8px;">📂</div>
-          <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">读写本地文件</div>
-          <div style="font-size: 12px; color: #888;">自动整理文件夹、批量处理、生成文档</div>
+          <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">Read and write local files</div>
+          <div style="font-size: 12px; color: #888;">Auto-organise folders, batch processing, generate documents</div>
         </div>
         <div class="work-feature-card" data-feature="game" style="background: rgba(255,255,255,0.03); border-radius: 10px; padding: 16px; border: 1px solid rgba(255,255,255,0.08); cursor: pointer;">
           <div style="font-size: 24px; margin-bottom: 8px;">🎮</div>
-          <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">做小游戏</div>
-          <div style="font-size: 12px; color: #888;">贪吃蛇、俄罗斯方块、网页小游戏</div>
+          <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">Small games</div>
+          <div style="font-size: 12px; color: #888;">Snake, Tetris, browser games</div>
         </div>
       </div>
 
@@ -337,68 +337,68 @@
       ">
         <div id="work-chat-empty" style="text-align: center; color: #666; padding: 60px 20px;">
           <div style="font-size: 48px; margin-bottom: 16px;">💼</div>
-          <div style="font-size: 16px; margin-bottom: 8px;">还没有工作任务</div>
-          <div style="font-size: 13px;">在上面描述你想做什么，点击"开始工作"，AI就会帮你干活！</div>
+          <div style="font-size: 16px; margin-bottom: 8px;">No work tasks yet</div>
+          <div style="font-size: 13px;">Describe what you want above, click "Start working", and the AI will do the work!</div>
         </div>
         <div id="work-chat-messages"></div>
       </div>
 
       <!-- Recent Tasks (Placeholder) -->
       <div>
-        <div style="font-size: 16px; font-weight: 600; margin-bottom: 16px;">📋 最近任务</div>
+        <div style="font-size: 16px; font-weight: 600; margin-bottom: 16px;">📋 Recent tasks</div>
         <div style="text-align: center; padding: 40px; color: #666; font-size: 14px;">
-          暂无任务，创建第一个工作任务吧！
+          No tasks yet - create your first work task!
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ============================ Template Library / 模板库 ============================ -->
+  <!-- ============================ Template Library ============================ -->
   <section class="view view--templates" id="view-templates" role="tabpanel" style="display:none; height: calc(100vh - 64px); overflow-y: auto;">
     <div style="max-width: 900px; margin: 0 auto; padding: 40px 20px;">
       <div style="margin-bottom: 24px;">
-        <h2 style="font-size: 24px; margin-bottom: 8px;">📋 模板库</h2>
-        <p style="color: #888; font-size: 14px;">内置常用提示词模板，点一下就填入对话框，直接用！</p>
+        <h2 style="font-size: 24px; margin-bottom: 8px;">📋 Template library</h2>
+        <p style="color: #888; font-size: 14px;">Built-in prompt templates - click one to fill the composer and use it right away.</p>
       </div>
       
       <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
         <div class="template-card" data-template="code" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; cursor: pointer;">
           <div style="font-size: 28px; margin-bottom: 10px;">💻</div>
-          <div style="font-weight: 600; font-size: 15px; margin-bottom: 6px;">写代码助手</div>
-          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">帮你写Python/JS/HTML代码，调试bug，优化性能</div>
-          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 12px;">使用模板</button>
+          <div style="font-weight: 600; font-size: 15px; margin-bottom: 6px;">Code assistant</div>
+          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">Writes Python/JS/HTML, debugs issues, optimises performance</div>
+          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 12px;">Use template</button>
         </div>
         
         <div class="template-card" data-template="copy" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; cursor: pointer;">
           <div style="font-size: 28px; margin-bottom: 10px;">✍️</div>
-          <div style="font-weight: 600; font-size: 15px; margin-bottom: 6px;">文案写作</div>
-          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">写公众号文章、产品文案、短视频脚本</div>
-          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 12px;">使用模板</button>
+          <div style="font-weight: 600; font-size: 15px; margin-bottom: 6px;">Copywriting</div>
+          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">Blog posts, product copy, short-video scripts</div>
+          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 12px;">Use template</button>
         </div>
         
         <div class="template-card" data-template="image-reverse" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; cursor: pointer;">
           <div style="font-size: 28px; margin-bottom: 10px;">🖼️</div>
-          <div style="font-weight: 600; font-size: 15px; margin-bottom: 6px;">图片反推</div>
-          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">上传图片，反推详细的AI绘画提示词</div>
-          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 12px;">使用模板</button>
+          <div style="font-weight: 600; font-size: 15px; margin-bottom: 6px;">Image captioning</div>
+          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">Upload an image and get a detailed AI-art prompt back</div>
+          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 12px;">Use template</button>
         </div>
         
         <div class="template-card" data-template="game" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; cursor: pointer;">
           <div style="font-size: 28px; margin-bottom: 10px;">🎮</div>
-          <div style="font-weight: 600; font-size: 15px; margin-bottom: 6px;">做小游戏</div>
-          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">贪吃蛇、俄罗斯方块、网页小游戏开发</div>
-          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 12px;">使用模板</button>
+          <div style="font-weight: 600; font-size: 15px; margin-bottom: 6px;">Small games</div>
+          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">Snake, Tetris, browser game development</div>
+          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 12px;">Use template</button>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ============================ My Assistants / 我的助理 ============================ -->
+  <!-- ============================ My Assistants ============================ -->
   <section class="view view--assistant" id="view-assistant" role="tabpanel" style="display:none; height: calc(100vh - 64px); overflow-y: auto;">
     <div style="max-width: 900px; margin: 0 auto; padding: 40px 20px;">
       <div style="margin-bottom: 24px;">
-        <h2 style="font-size: 24px; margin-bottom: 8px;">🤖 我的助理</h2>
-        <p style="color: #888; font-size: 14px;">内置专家角色，一键切换，让AI成为你的专属专家！</p>
+        <h2 style="font-size: 24px; margin-bottom: 8px;">🤖 My assistants</h2>
+        <p style="color: #888; font-size: 14px;">Built-in expert roles - switch with one click and make the AI your own specialist.</p>
       </div>
       
       <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
@@ -406,59 +406,59 @@
           <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
             <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(0,212,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 24px;">👨‍💻</div>
             <div>
-              <div style="font-weight: 600; font-size: 15px;">代码专家</div>
-              <div style="font-size: 12px; color: #888;">Python / JS / 全栈开发</div>
+              <div style="font-weight: 600; font-size: 15px;">Code expert</div>
+              <div style="font-size: 12px; color: #888;">Python / JS / full-stack</div>
             </div>
           </div>
-          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">擅长写代码、调试bug、架构设计、性能优化</div>
-          <button class="st-btn st-btn--primary" style="font-size: 12px; padding: 6px 12px;">切换到此助理</button>
+          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">Writes code, debugs, designs architecture, optimises performance</div>
+          <button class="st-btn st-btn--primary" style="font-size: 12px; padding: 6px 12px;">Switch to this assistant</button>
         </div>
         
         <div class="assistant-card" data-assistant="writer" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; cursor: pointer;">
           <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
             <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(255,193,7,0.2); display: flex; align-items: center; justify-content: center; font-size: 24px;">✍️</div>
             <div>
-              <div style="font-weight: 600; font-size: 15px;">文案专家</div>
-              <div style="font-size: 12px; color: #888;">写作 / 营销 / 内容创作</div>
+              <div style="font-weight: 600; font-size: 15px;">Copy expert</div>
+              <div style="font-size: 12px; color: #888;">Writing / marketing / content</div>
             </div>
           </div>
-          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">擅长写文章、产品文案、短视频脚本、营销话术</div>
-          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 12px;">切换到此助理</button>
+          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">Articles, product copy, short-video scripts, marketing copy</div>
+          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 12px;">Switch to this assistant</button>
         </div>
         
         <div class="assistant-card" data-assistant="artist" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; cursor: pointer;">
           <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
             <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(156,39,176,0.2); display: flex; align-items: center; justify-content: center; font-size: 24px;">🎨</div>
             <div>
-              <div style="font-weight: 600; font-size: 15px;">画师助手</div>
-              <div style="font-size: 12px; color: #888;">AI绘画 / 提示词工程</div>
+              <div style="font-weight: 600; font-size: 15px;">Artist assistant</div>
+              <div style="font-size: 12px; color: #888;">AI art / prompt engineering</div>
             </div>
           </div>
-          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">擅长AI绘画提示词、反推图片、风格描述、构图设计</div>
-          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 12px;">切换到此助理</button>
+          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">AI-art prompts, image captioning, style descriptions, composition design</div>
+          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 12px;">Switch to this assistant</button>
         </div>
         
         <div class="assistant-card" data-assistant="analyst" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; cursor: pointer;">
           <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
             <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(76,175,80,0.2); display: flex; align-items: center; justify-content: center; font-size: 24px;">📊</div>
             <div>
-              <div style="font-weight: 600; font-size: 15px;">数据分析</div>
-              <div style="font-size: 12px; color: #888;">数据处理 / 表格 / 可视化</div>
+              <div style="font-weight: 600; font-size: 15px;">Data analysis</div>
+              <div style="font-size: 12px; color: #888;">Data processing / sheets / visualisation</div>
             </div>
           </div>
-          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">擅长数据清洗、统计分析、Excel公式、图表设计</div>
-          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 12px;">切换到此助理</button>
+          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">Data cleaning, statistical analysis, Excel formulas, chart design</div>
+          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 12px;">Switch to this assistant</button>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ============================ Plugin Market / 插件市场 ============================ -->
+  <!-- ============================ Plugin Market ============================ -->
   <section class="view view--plugins" id="view-plugins" role="tabpanel" style="display:none; height: calc(100vh - 64px); overflow-y: auto;">
     <div style="max-width: 900px; margin: 0 auto; padding: 40px 20px;">
       <div style="margin-bottom: 24px;">
-        <h2 style="font-size: 24px; margin-bottom: 8px;">🔌 插件市场</h2>
-        <p style="color: #888; font-size: 14px;">安装和使用各种Skill插件，扩展AI的能力！</p>
+        <h2 style="font-size: 24px; margin-bottom: 8px;">🔌 Plugin market</h2>
+        <p style="color: #888; font-size: 14px;">Install and use Skill plugins to extend what the AI can do.</p>
       </div>
       
       <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
@@ -466,118 +466,118 @@
           <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
             <div style="width: 48px; height: 48px; border-radius: 10px; background: rgba(0,212,255,0.15); display: flex; align-items: center; justify-content: center; font-size: 24px;">📁</div>
             <div>
-              <div style="font-weight: 600; font-size: 15px;">文件助手</div>
-              <div style="font-size: 12px; color: #888;">文件读写、批量处理、格式转换</div>
+              <div style="font-weight: 600; font-size: 15px;">File assistant</div>
+              <div style="font-size: 12px; color: #888;">File read/write, batch processing, format conversion</div>
             </div>
           </div>
-          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">读取本地文件、批量重命名、整理文件夹、导出Markdown</div>
-          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 16px;">已安装</button>
+          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">Read local files, batch rename, tidy folders, export Markdown</div>
+          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 16px;">Installed</button>
         </div>
         
         <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px;">
           <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
             <div style="width: 48px; height: 48px; border-radius: 10px; background: rgba(255,193,7,0.15); display: flex; align-items: center; justify-content: center; font-size: 24px;">🖼️</div>
             <div>
-              <div style="font-weight: 600; font-size: 15px;">图片处理</div>
-              <div style="font-size: 12px; color: #888;">图片反推、格式转换、批量缩放</div>
+              <div style="font-weight: 600; font-size: 15px;">Image processing</div>
+              <div style="font-size: 12px; color: #888;">Image captioning, format conversion, batch resize</div>
             </div>
           </div>
-          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">上传图片反推提示词、压缩图片、格式转换、批量加水印</div>
-          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 16px;">已安装</button>
+          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">Caption uploaded images, compress, convert formats, batch watermark</div>
+          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 16px;">Installed</button>
         </div>
         
         <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px;">
           <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
             <div style="width: 48px; height: 48px; border-radius: 10px; background: rgba(156,39,176,0.15); display: flex; align-items: center; justify-content: center; font-size: 24px;">🎬</div>
             <div>
-              <div style="font-weight: 600; font-size: 15px;">视频分析</div>
-              <div style="font-size: 12px; color: #888;">视频抽帧、内容理解、关键帧提取</div>
+              <div style="font-weight: 600; font-size: 15px;">Video analysis</div>
+              <div style="font-size: 12px; color: #888;">Frame extraction, content understanding, keyframe extraction</div>
             </div>
           </div>
-          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">上传视频自动提取关键帧，分析视频内容、场景、人物</div>
-          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 16px;">已安装</button>
+          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">Extract keyframes from an uploaded video and analyse its content, scenes and people</div>
+          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 16px;">Installed</button>
         </div>
         
         <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px;">
           <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
             <div style="width: 48px; height: 48px; border-radius: 10px; background: rgba(76,175,80,0.15); display: flex; align-items: center; justify-content: center; font-size: 24px;">🎵</div>
             <div>
-              <div style="font-weight: 600; font-size: 15px;">音频反推</div>
-              <div style="font-size: 12px; color: #888;">音频波形分析、音乐描述、音效识别</div>
+              <div style="font-weight: 600; font-size: 15px;">Audio captioning</div>
+              <div style="font-size: 12px; color: #888;">Waveform analysis, music description, sound-effect recognition</div>
             </div>
           </div>
-          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">上传音频生成波形图，反推音乐风格、氛围、乐器描述</div>
-          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 16px;">已安装</button>
+          <div style="font-size: 12px; color: #888; margin-bottom: 12px;">Generate a waveform from uploaded audio and describe style, mood and instruments</div>
+          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 16px;">Installed</button>
         </div>
         
         <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px;">
           <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
             <div style="width: 48px; height: 48px; border-radius: 10px; background: rgba(0,212,255,0.15); display: flex; align-items: center; justify-content: center; font-size: 24px;">🌐</div>
             <div>
-              <div style="font-weight: 600; font-size: 15px;">网页抓取</div>
-              <div style="font-size: 12px; color: #888;">整页全拿 / 按需只取相关部分</div>
+              <div style="font-weight: 600; font-size: 15px;">Web fetching</div>
+              <div style="font-size: 12px; color: #888;">Whole page, or only the relevant part</div>
             </div>
           </div>
-          <div style="font-size: 12px; color: #888; margin-bottom: 8px;">给一个网址：整页正文，或只要相关段落 / 表格 / 大纲 / 元数据；长文按相关性选段，不从尾部硬截</div>
-          <div style="font-size: 11px; color: #666; margin-bottom: 12px;">工具名 web-fetch__fetch_page · web-fetch__fetch_meta</div>
-          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 16px;">已安装</button>
+          <div style="font-size: 12px; color: #888; margin-bottom: 8px;">Give a URL: the full page text, or only the relevant sections / tables / outline / metadata; long pages are selected by relevance instead of truncated from the tail</div>
+          <div style="font-size: 11px; color: #666; margin-bottom: 12px;">Tools: web-fetch__fetch_page · web-fetch__fetch_meta</div>
+          <button class="st-btn st-btn--secondary" style="font-size: 12px; padding: 6px 16px;">Installed</button>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ============================ Automation / 自动化 ============================ -->
+  <!-- ============================ Automation ============================ -->
   <section class="view view--automation" id="view-automation" role="tabpanel" style="display:none; height: calc(100vh - 64px); overflow-y: auto;">
     <div style="max-width: 900px; margin: 0 auto; padding: 40px 20px;">
       <div style="margin-bottom: 24px;">
-        <h2 style="font-size: 24px; margin-bottom: 8px;">⏰ 自动化</h2>
-        <p style="color: #888; font-size: 14px;">定时任务、自动执行、工作流自动化！</p>
+        <h2 style="font-size: 24px; margin-bottom: 8px;">⏰ Automation</h2>
+        <p style="color: #888; font-size: 14px;">Scheduled jobs, automatic runs, workflow automation.</p>
       </div>
       
       <div style="text-align: center; padding: 80px 20px; color: #666;">
         <div style="font-size: 64px; margin-bottom: 20px;">⏰</div>
-        <div style="font-size: 18px; margin-bottom: 12px;">自动化功能即将上线</div>
+        <div style="font-size: 18px; margin-bottom: 12px;">Automation is coming soon</div>
         <div style="font-size: 14px; max-width: 400px; margin: 0 auto;">
-          很快你就能设置定时任务、自动处理文件、自动生成报告，让AI帮你自动干活
+          Soon you will be able to schedule jobs, process files automatically and generate reports on a timer, and let the AI do the work for you
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ============================ My Outputs / 我的产物 ============================ -->
+  <!-- ============================ My Outputs ============================ -->
   <section class="view view--outputs" id="view-outputs" role="tabpanel" style="display:none; height: calc(100vh - 64px); overflow-y: auto;">
     <div style="max-width: 900px; margin: 0 auto; padding: 40px 20px;">
       <div style="margin-bottom: 24px;">
-        <h2 style="font-size: 24px; margin-bottom: 8px;">📁 我的产物</h2>
-        <p style="color: #888; font-size: 14px;">你生成的所有代码、文件、图片都在这里！</p>
+        <h2 style="font-size: 24px; margin-bottom: 8px;">📁 My outputs</h2>
+        <p style="color: #888; font-size: 14px;">Every file, image and program you generate lands here.</p>
       </div>
       
       <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
         <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 16px;">
           <div style="font-size: 32px; margin-bottom: 8px;">💻</div>
-          <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">贪吃蛇小游戏.py</div>
-          <div style="font-size: 11px; color: #888; margin-bottom: 12px;">Python · 2KB · 刚刚</div>
-          <button class="st-btn st-btn--secondary" style="font-size: 11px; padding: 4px 12px;">下载</button>
+          <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">snake_game.py</div>
+          <div style="font-size: 11px; color: #888; margin-bottom: 12px;">Python · 2KB · just now</div>
+          <button class="st-btn st-btn--secondary" style="font-size: 11px; padding: 4px 12px;">Download</button>
         </div>
         
         <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 16px;">
           <div style="font-size: 32px; margin-bottom: 8px;">✍️</div>
-          <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">产品文案.docx</div>
-          <div style="font-size: 11px; color: #888; margin-bottom: 12px;">Word · 15KB · 2小时前</div>
-          <button class="st-btn st-btn--secondary" style="font-size: 11px; padding: 4px 12px;">下载</button>
+          <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">product_copy.docx</div>
+          <div style="font-size: 11px; color: #888; margin-bottom: 12px;">Word · 15KB · 2 hours ago</div>
+          <button class="st-btn st-btn--secondary" style="font-size: 11px; padding: 4px 12px;">Download</button>
         </div>
         
         <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 16px;">
           <div style="font-size: 32px; margin-bottom: 8px;">🎮</div>
-          <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">俄罗斯方块.html</div>
-          <div style="font-size: 11px; color: #888; margin-bottom: 12px;">HTML · 8KB · 昨天</div>
-          <button class="st-btn st-btn--secondary" style="font-size: 11px; padding: 4px 12px;">下载</button>
+          <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">tetris.html</div>
+          <div style="font-size: 11px; color: #888; margin-bottom: 12px;">HTML · 8KB · yesterday</div>
+          <button class="st-btn st-btn--secondary" style="font-size: 11px; padding: 4px 12px;">Download</button>
         </div>
       </div>
 
       <div style="text-align: center; padding: 60px 20px; color: #666; margin-top: 40px;">
         <div style="font-size: 48px; margin-bottom: 16px;">📁</div>
-        <div style="font-size: 14px;">更多产物会在这里自动保存</div>
+        <div style="font-size: 14px;">More outputs are saved here automatically</div>
       </div>
     </div>
   </section>
@@ -683,32 +683,32 @@
   <section class="view view--about" id="view-about" role="tabpanel" aria-labelledby="tab-btn-about" hidden>
     <div class="about">
       <div class="st-card">
-        <span class="card-title">BSAI 模型选择 / Model Selection</span>
-        <p class="muted small" style="margin-bottom:12px;">点击即可切换模型，需要等待 1-2 分钟引擎重启。</p>
+        <span class="card-title">BSAI model selection</span>
+        <p class="muted small" style="margin-bottom:12px;">Click to switch models; the engine restarts and takes 1-2 minutes.</p>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;" id="model-list">
           <div style="padding:12px;background:rgba(255,255,255,0.05);border-radius:8px;cursor:pointer;" class="model-item" data-model="Q2_0">
-            <div style="font-weight:bold;margin-bottom:4px;">🚀 Q2_0 (最快)</div>
-            <div class="muted small">速度最快，显存占用最小</div>
+            <div style="font-weight:bold;margin-bottom:4px;">🚀 Q2_0 (fastest)</div>
+            <div class="muted small">Fastest, smallest VRAM footprint</div>
           </div>
           <div style="padding:12px;background:rgba(255,255,255,0.05);border-radius:8px;cursor:pointer;" class="model-item" data-model="IQ2_XS">
-            <div style="font-weight:bold;margin-bottom:4px;">⚖️ IQ2_XS (略好)</div>
-            <div class="muted small">速度与质量平衡</div>
+            <div style="font-weight:bold;margin-bottom:4px;">⚖️ IQ2_XS (better)</div>
+            <div class="muted small">Balanced speed and quality</div>
           </div>
           <div style="padding:12px;background:rgba(255,255,255,0.05);border-radius:8px;cursor:pointer;" class="model-item" data-model="IQ3_XXS">
-            <div style="font-weight:bold;margin-bottom:4px;">🎯 IQ3_XXS (更好)</div>
-            <div class="muted small">质量更好，速度适中</div>
+            <div style="font-weight:bold;margin-bottom:4px;">🎯 IQ3_XXS (good)</div>
+            <div class="muted small">Better quality at moderate speed</div>
           </div>
           <div style="padding:12px;background:rgba(255,255,255,0.05);border-radius:8px;cursor:pointer;" class="model-item" data-model="IQ3_S">
-            <div style="font-weight:bold;margin-bottom:4px;">💎 IQ3_S (最好质量)</div>
-            <div class="muted small">质量最高，适合高配电脑</div>
+            <div style="font-weight:bold;margin-bottom:4px;">💎 IQ3_S (best quality)</div>
+            <div class="muted small">Highest quality, for high-end machines</div>
           </div>
           <div style="padding:12px;background:rgba(0,212,255,0.08);border-radius:8px;cursor:pointer;" class="model-item" data-model="flint">
-            <div style="font-weight:bold;margin-bottom:4px;">🔧 Flint 40B (编程模型)</div>
-            <div class="muted small">Recursive Flint 40B MoE · 262K 上下文 · llama.cpp 引擎</div>
+            <div style="font-weight:bold;margin-bottom:4px;">🔧 Flint 40B (coding model)</div>
+            <div class="muted small">Recursive Flint 40B MoE · 262K context · llama.cpp engine</div>
           </div>
           <div style="padding:12px;background:rgba(124,77,255,0.10);border-radius:8px;cursor:pointer;" class="model-item" data-model="deepseek">
-            <div style="font-weight:bold;margin-bottom:4px;">🧠 DeepSeek V4.1 (推理)</div>
-            <div class="muted small">DeepSeek-V4.1-Flash IST-DAS-2.00bpw · strata-dsv41 引擎 · 8K 上下文</div>
+            <div style="font-weight:bold;margin-bottom:4px;">🧠 DeepSeek V4.1 (reasoning)</div>
+            <div class="muted small">DeepSeek-V4.1-Flash IST-DAS-2.00bpw · strata-dsv41 engine · 8K context</div>
           </div>
         </div>
         <div id="model-status" class="muted small" style="margin-top:12px;"></div>

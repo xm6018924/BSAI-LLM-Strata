@@ -83,6 +83,30 @@ DEFAULT_STRATA_PORT = 8080
 DEFAULT_STRATA_BASE_URL = f"http://{DEFAULT_STRATA_HOST}:{DEFAULT_STRATA_PORT}/v1"
 DEFAULT_STRATA_MODEL = "qwen3.8-flash-next"
 
+# Upstream engine source: the official repository only, pinned to the v0.2.20 release
+# commit. The checkout is verified against STRATA_REPO_PIN, and any artifact the pinned
+# setup pulls down is checked against a pinned hash before it is used.
+STRATA_REPO_URL = "https://github.com/Niko1221/Strata.git"
+STRATA_REPO_PIN = "a34979fc94f3d126b9bb8210f4ad311345688b52"   # upstream tag v0.2.20
+STRATA_RELEASE_TAG = "v0.2.20"
+STRATA_RELEASE_BASE = (
+    "https://github.com/Niko1221/Strata/releases/download/" + STRATA_RELEASE_TAG + "/"
+)
+STRATA_SUMS_URL = STRATA_RELEASE_BASE + "SHA256SUMS.txt"
+
+# Hashes for the bootstrap package the pinned upstream setup downloads, taken from
+# releases/download/v0.2.20/install-manifest.txt (one entry per platform).
+_PINNED_ARTIFACT_SHA256 = {
+    "strata-control-0.1.66-windows-x86_64.zip":
+        "2130761067a1c83a6066027866d1dde087402a820859e4008b113a3e5f758122",
+    "strata-control-0.1.66-linux-x86_64.tar.gz":
+        "5bd662d293ab4dc8b71156daafbb42995bddbb765dbeac48c5fd74165dfb2d0d",
+    "strata-control-0.1.66-linux-aarch64.tar.gz":
+        "4d53d7cf560373b277762f15b0119ce53eeec08fcf628fce0c2a8ffc6aa23ff4",
+    "strata-control-0.1.66-macos-arm64.tar.gz":
+        "ca350cd719e9d3ab14317273b55107342abaa8dcac451380b35e4b7bd5f9a047",
+}
+
 # Where the user may have cloned https://github.com/Niko1221/Strata
 # Priority 0: the bundled copy shipped with this plugin (one-stop install).
 _PLUGIN_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -107,20 +131,38 @@ STRATA_DATA_DIR = os.path.join(STRATA_MODEL_DIR, "Strata-data")
 
 # Map quant names → run-*.bat filenames (must match files on disk)
 QUANT_OPTIONS = {
-    "Auto (自动适配)":             None,  # resolved by detect_best_quant()
-    "Q2_0 (最快 / fastest)":      "run-q2_0.bat",
-    "IQ2_XS (略好 / better)":     "run-iq2_xs.bat",
-    "IQ3_XXS (更好 / good)":      "run-iq3_xxs.bat",
-    "IQ3_S (最好 / best quality)": "run-iq3_s.bat",
+    "Auto (auto)":             None,  # resolved by detect_best_quant()
+    "Q2_0 (fastest)":          "run-q2_0.bat",
+    "IQ2_XS (better)":         "run-iq2_xs.bat",
+    "IQ3_XXS (good)":          "run-iq3_xxs.bat",
+    "IQ3_S (best quality)":    "run-iq3_s.bat",
 }
-DEFAULT_QUANT_LABEL = "Auto (自动适配)"
+DEFAULT_QUANT_LABEL = "Auto (auto)"
+
+# Earlier builds and saved workflows persisted the old Chinese quant labels.
+# They are only mapped onto the current English labels on read; nothing new writes them.
+_LEGACY_QUANT_LABELS = {
+    "Auto (自动适配)": "Auto (auto)",
+    "Q2_0 (最快 / fastest)": "Q2_0 (fastest)",
+    "IQ2_XS (略好 / better)": "IQ2_XS (better)",
+    "IQ3_XXS (更好 / good)": "IQ3_XXS (good)",
+    "IQ3_S (最好 / best quality)": "IQ3_S (best quality)",
+}
+
+
+def normalize_quant_label(label):
+    """Accepted value guard: map a legacy (Chinese) quant label to the English one."""
+    if not isinstance(label, str):
+        return label
+    return _LEGACY_QUANT_LABELS.get(label, label)
+
 
 # Hardware tiers for auto-select: (min_vram_gb, min_ram_gb, label)
 _QUANT_TIERS = [
-    (32, 64, "IQ3_S (最好 / best quality)"),
-    (24, 48, "IQ3_XXS (更好 / good)"),
-    (16, 40, "IQ2_XS (略好 / better)"),
-    (0,  0,  "Q2_0 (最快 / fastest)"),  # always fits
+    (32, 64, "IQ3_S (best quality)"),
+    (24, 48, "IQ3_XXS (good)"),
+    (16, 40, "IQ2_XS (better)"),
+    (0,  0,  "Q2_0 (fastest)"),  # always fits
 ]
 
 # Global preferred-quant state file
@@ -215,14 +257,14 @@ class StrataManager:
             if vram_gb >= min_vram and ram_gb >= min_ram:
                 print(f"[BSAI-LLM-Strata] Auto-select: VRAM={vram_gb:.1f}GB RAM={ram_gb:.1f}GB → {label}")
                 return label
-        return "Q2_0 (最快 / fastest)"
+        return "Q2_0 (fastest)"
 
     @classmethod
     def get_preferred_quant(cls):
         """Read the user's preferred quant label (defaults to Auto)."""
         try:
             with open(_PREF_QUANT_FILE, "r", encoding="utf-8") as f:
-                label = f.read().strip()
+                label = normalize_quant_label(f.read().strip())
             if label in QUANT_OPTIONS:
                 return label
         except Exception:
@@ -232,6 +274,7 @@ class StrataManager:
     @classmethod
     def set_preferred_quant(cls, label):
         """Persist the preferred quant label."""
+        label = normalize_quant_label(label)
         if label not in QUANT_OPTIONS:
             return False
         try:
@@ -244,7 +287,8 @@ class StrataManager:
     @classmethod
     def _bat_for_quant(cls, label):
         """Resolve a quant label to a full run-*.bat path. 'Auto' is resolved."""
-        if label == "Auto (自动适配)":
+        label = normalize_quant_label(label)
+        if label == "Auto (auto)":
             label = cls.detect_best_quant()
         if label not in QUANT_OPTIONS:
             return None
@@ -260,43 +304,45 @@ class StrataManager:
     # ---------- discovery ----------
     @classmethod
     def ensure_strata_installed(cls):
-        """Auto-clone Strata engine into the plugin's Strata/ subfolder if missing.
-        Returns the install path, or None on failure."""
+        """Install the engine source into the plugin's Strata/ folder from the official
+        repository at the pinned commit, verified after checkout.
+
+        Only an explicit install action calls this (the install route / `setup`); plugin
+        load and health requests never touch the network. Returns the path or None."""
         target = os.path.join(_PLUGIN_DIR, "Strata")
         # Already there?
         if os.path.isdir(target) and os.path.exists(os.path.join(target, "setup.py")):
             # Apply BSAI custom patches (video analysis, UI improvements, etc.)
             cls.apply_bsai_patches(target)
             return target
-        # Clone it - try GitHub first, then mirrors
-        mirrors = [
-            "https://github.com/Niko1221/Strata.git",
-            "https://ghproxy.com/https://github.com/Niko1221/Strata.git",
-            "https://mirror.ghproxy.com/https://github.com/Niko1221/Strata.git",
-            "https://gh-proxy.com/https://github.com/Niko1221/Strata.git",
-        ]
-        for url in mirrors:
-            try:
-                os.makedirs(target, exist_ok=True)
-                print(f"[BSAI-LLM-Strata] 首次使用，正在自动下载 Strata 引擎 …")
-                print(f"[BSAI-LLM-Strata] 尝试源: {url}")
-                subprocess.run(
-                    ["git", "clone", "--depth", "1", url, target],
-                    check=True, timeout=300,
-                )
-                print("[BSAI-LLM-Strata] Strata 引擎下载完成。")
-                # Apply BSAI custom patches after fresh clone
-                cls.apply_bsai_patches(target)
-                return target
-            except Exception as e:
-                print(f"[BSAI-LLM-Strata] 下载失败: {e}")
-                # Clean up failed clone
-                import shutil
-                if os.path.isdir(target):
-                    shutil.rmtree(target, ignore_errors=True)
-                continue
-        print("[BSAI-LLM-Strata] 所有下载源都失败了，请检查网络连接。")
-        return None
+        try:
+            os.makedirs(target, exist_ok=True)
+            print(f"[BSAI-LLM-Strata] Installing Strata source at the pinned commit {STRATA_REPO_PIN[:8]} …")
+            subprocess.run(
+                ["git", "clone", "--no-checkout", "--filter=blob:none", STRATA_REPO_URL, target],
+                check=True, timeout=600,
+            )
+            subprocess.run(
+                ["git", "-C", target, "fetch", "--depth", "1", "origin", STRATA_REPO_PIN],
+                check=True, timeout=600,
+            )
+            subprocess.run(
+                ["git", "-C", target, "checkout", "--detach", STRATA_REPO_PIN],
+                check=True, timeout=180,
+            )
+            head = subprocess.run(
+                ["git", "-C", target, "rev-parse", "HEAD"],
+                capture_output=True, text=True, timeout=60,
+            ).stdout.strip()
+            if head != STRATA_REPO_PIN:
+                raise RuntimeError(f"checked-out commit {head} does not match the pin {STRATA_REPO_PIN}")
+            print(f"[BSAI-LLM-Strata] Strata source verified at {head[:8]}.")
+            cls.apply_bsai_patches(target)
+            return target
+        except Exception as e:
+            print(f"[BSAI-LLM-Strata] Strata source install failed: {e}")
+            shutil.rmtree(target, ignore_errors=True)
+            return None
 
     @staticmethod
     def apply_bsai_patches(strata_dir):
@@ -428,16 +474,12 @@ class StrataManager:
                 print(f"[BSAI-LLM-Strata] 使用{py_label} Python: {sys_python}")
                 return sys_python
             else:
-                # Auto-install missing dependencies using Tsinghua mirror
+                # Auto-install missing dependencies (default pip index — no mirror override)
                 print("[BSAI-LLM-Strata] 检测到缺少依赖，正在自动安装 ...")
                 deps = "numpy jinja2 pyyaml tqdm requests cmake ninja pillow psutil markupsafe certifi charset-normalizer idna urllib3 colorama regex".split()
-                env = os.environ.copy()
-                env["PIP_INDEX_URL"] = "https://pypi.tuna.tsinghua.edu.cn/simple"
-                env["PIP_TRUSTED_HOST"] = "pypi.tuna.tsinghua.edu.cn"
                 r2 = subprocess.run(
                     [sys_python, "-m", "pip", "install", deps],
                     capture_output=True, text=True, timeout=300,
-                    env=env,
                 )
                 if r2.returncode == 0:
                     print("[BSAI-LLM-Strata] 依赖安装完成。")
@@ -497,6 +539,56 @@ class StrataManager:
         order = {"IQ3_S": 0, "IQ3_XXS": 1, "IQ2_XS": 2, "Q2_0": 3, "Q4_XS": 4}
         found.sort(key=lambda x: order.get(x[0], 99))
         return found
+
+    @staticmethod
+    def _sha256_file(path, chunk=1 << 20):
+        import hashlib
+        h = hashlib.sha256()
+        with open(path, "rb") as f:
+            for block in iter(lambda: f.read(chunk), b""):
+                h.update(block)
+        return h.hexdigest()
+
+    @classmethod
+    def _verify_release_artifacts(cls, install):
+        """Check downloaded release archives against pinned hashes.
+
+        Hashes come from _PINNED_ARTIFACT_SHA256 (install-manifest.txt of the pinned release)
+        and, as a fallback, from the SHA256SUMS.txt of that same tag. Returns
+        ("ok" | "none" | "mismatch", message): a mismatch must stop the install, while
+        "none" only means the pinned upstream setup already verified the archive against
+        the digest of the pinned release and then deleted it."""
+        candidates = []
+        for root, _dirs, files in os.walk(install):
+            for f in files:
+                if f.lower().endswith((".zip", ".tar.gz", ".tgz")):
+                    candidates.append(os.path.join(root, f))
+        if not candidates:
+            return "none", "no downloaded archive left to hash"
+        sums = dict(_PINNED_ARTIFACT_SHA256)
+        try:
+            with urllib.request.urlopen(STRATA_SUMS_URL, timeout=60) as r:
+                for line in r.read().decode("utf-8", "replace").splitlines():
+                    parts = line.split()
+                    if len(parts) == 2:
+                        sums.setdefault(parts[1].lstrip("*"), parts[0].lower())
+        except Exception as e:
+            print(f"[BSAI-LLM-Strata] Could not read the pinned SHA256SUMS.txt: {e}")
+        verified = 0
+        for path in candidates:
+            name = os.path.basename(path)
+            want = sums.get(name)
+            if not want:
+                print(f"[BSAI-LLM-Strata] No pinned checksum for {name}; not verified.")
+                continue
+            got = cls._sha256_file(path)
+            if got != want:
+                return "mismatch", f"checksum mismatch for {name} ({got} != {want})"
+            verified += 1
+            print(f"[BSAI-LLM-Strata] SHA256 verified: {name}")
+        if verified == 0:
+            return "none", "no downloaded artifact matched a pinned checksum"
+        return "ok", f"{verified} release archive(s) verified"
 
     @classmethod
     def ensure_strata_engine(cls):
@@ -597,16 +689,12 @@ if errorlevel 1 pause
             best_quant = None
             best_dir = None
             print("[BSAI-LLM-Strata] 未检测到已有模型，setup.py 将自动下载默认模型 …")
-        # Auto-install all dependencies using Tsinghua mirror before running setup.py
+        # Auto-install all dependencies (default pip index — no mirror override)
         print("[BSAI-LLM-Strata] 正在自动安装 Strata 依赖包 ...")
         deps_list = ["numpy", "jinja2", "regex", "pyyaml", "tqdm", "requests", "pillow", "psutil", "markupsafe", "certifi", "charset-normalizer", "idna", "urllib3", "colorama"]
-        env = os.environ.copy()
-        env["PIP_INDEX_URL"] = "https://pypi.tuna.tsinghua.edu.cn/simple"
-        env["PIP_TRUSTED_HOST"] = "pypi.tuna.tsinghua.edu.cn"
         r_deps = subprocess.run(
             [venv_python, "-m", "pip", "install"] + deps_list,
             capture_output=True, text=True, timeout=300,
-            env=env,
         )
         print(f"[BSAI-LLM-Strata] pip install stdout: {r_deps.stdout[-500:]}")
         print(f"[BSAI-LLM-Strata] pip install stderr: {r_deps.stderr[-500:]}")
@@ -621,8 +709,8 @@ if errorlevel 1 pause
         if best_dir:
             args.extend(["--gguf-dir", best_dir])
         args.extend(["--models-dir", STRATA_MODEL_DIR])
-        # Run setup.py with auto-retry
-        max_retries = 3
+        # Run setup.py with one retry; only the pinned release URL is ever offered.
+        max_retries = 2
         for attempt in range(1, max_retries + 1):
             try:
                 if attempt == 1:
@@ -639,23 +727,9 @@ if errorlevel 1 pause
                                 os.remove(p)
                             except Exception:
                                 pass
-                # Set pip mirror to Tsinghua for automatic dependency installation
+                # Pinned release only: no third-party proxy mirrors, no `latest`.
                 env = os.environ.copy()
-                env["PIP_INDEX_URL"] = "https://pypi.tuna.tsinghua.edu.cn/simple"
-                env["PIP_TRUSTED_HOST"] = "pypi.tuna.tsinghua.edu.cn"
-                # Set GitHub mirror for Strata engine download
-                # Try ghproxy.com first, fallback to official GitHub
-                if attempt == 1:
-                    # First try: official GitHub
-                    env["STRATA_PREBUILT_URL"] = "https://github.com/Niko1221/Strata/releases/latest/download/"
-                elif attempt == 2:
-                    # Second try: ghproxy.com mirror
-                    env["STRATA_PREBUILT_URL"] = "https://ghproxy.com/https://github.com/Niko1221/Strata/releases/latest/download/"
-                    print("[BSAI-LLM-Strata] 切换到 GitHub 镜像源 (ghproxy.com) ...")
-                else:
-                    # Third try: mirror.ghproxy.com
-                    env["STRATA_PREBUILT_URL"] = "https://mirror.ghproxy.com/https://github.com/Niko1221/Strata/releases/latest/download/"
-                    print("[BSAI-LLM-Strata] 切换到 GitHub 镜像源 (mirror.ghproxy.com) ...")
+                env["STRATA_PREBUILT_URL"] = STRATA_RELEASE_BASE
                 r = subprocess.run(
                     args,
                     cwd=install,
@@ -670,7 +744,15 @@ if errorlevel 1 pause
                 # Verify run-*.bat was created
                 new_runs = [f for f in os.listdir(install) if f.startswith("run-") and f.endswith(".bat")]
                 if new_runs:
-                    print("[BSAI-LLM-Strata] Strata 引擎安装完成。")
+                    status, msg_verify = cls._verify_release_artifacts(install)
+                    if status == "mismatch":
+                        print(f"[BSAI-LLM-Strata] Release verification failed: {msg_verify}")
+                        return False
+                    if status == "ok":
+                        print(f"[BSAI-LLM-Strata] Strata 引擎安装完成并通过校验（{msg_verify}）。")
+                    else:
+                        print("[BSAI-LLM-Strata] Strata 引擎安装完成（引擎包已由固定版本的上游 setup.py "
+                              "按 release 摘要校验后解包，本地无残留包可再校验）。")
                     return True
                 else:
                     print("[BSAI-LLM-Strata] setup.py 运行完成，但未找到 run-*.bat，可能未完全成功。")
@@ -695,11 +777,8 @@ if errorlevel 1 pause
             ):
                 cls._detected_install = p
                 return p
-        # Not found anywhere — auto-clone into plugin dir
-        auto = cls.ensure_strata_installed()
-        if auto:
-            cls._detected_install = auto
-            return auto
+        # Not found. Detection only: an install runs from an explicit user action
+        # (`ensure_strata_installed`), never as a side effect of a health request.
         return None
 
     @classmethod
@@ -820,7 +899,8 @@ if errorlevel 1 pause
         Returns (quant_upper, quant_lower) e.g. ("IQ3_S", "iq3_s").
         """
         label = cls.get_preferred_quant()
-        if label == "Auto (自动适配)":
+        label = normalize_quant_label(label)
+        if label == "Auto (auto)":
             label = cls.detect_best_quant()
         pair = cls._QUANT_JSON_MAP.get(label)
         if not pair:
@@ -947,17 +1027,18 @@ if errorlevel 1 pause
             return True, "already_running"
 
         # Not up — keep config fresh so the launcher starts with correct paths.
-        label = quant_label or cls.get_preferred_quant()
-        if label == "Auto (自动适配)":
+        label = normalize_quant_label(quant_label or cls.get_preferred_quant())
+        if label == "Auto (auto)":
             label = cls.detect_best_quant()
         ok_gen, msg_gen = cls._refresh_json_config(label)
         if not ok_gen:
             print(f"[BSAI-LLM-Strata] Warning: json config refresh failed: {msg_gen}")
         launcher = os.path.join(cls._package_root() or "", cls._LAUNCHER_BAT_NAME)
         if not (launcher and os.path.exists(launcher)):
-            return False, "Strata 服务未运行，且未找到 BSAI_Strata服务.bat 启动器。请检查插件安装。"
-        # v2.9.3: 原来这里只让用户手动双击启动器。改为自动拉起并轮询到就绪
-        # (首次加载 125B MoE 需 1-3 分钟, 因此按 wait_timeout 等待)。
+            return False, "Strata is not running and the BSAI_Strata service launcher was not found. Please check the plugin install."
+        # v2.9.3: the launcher used to be a manual double-click only; now the node
+        # starts it and polls until the service is ready (a 125B MoE load takes 1-3 min,
+        # hence wait_timeout).
         if not (cls._proc is not None and cls._proc.poll() is None):
             import subprocess as _sp
             flags = _sp.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0
@@ -970,53 +1051,65 @@ if errorlevel 1 pause
                 )
                 print(f"[BSAI-LLM-Strata] Strata 服务未运行，已自动启动: {launcher} (pid {cls._proc.pid})")
             except Exception as e:
-                return False, f"自动启动 Strata 失败: {type(e).__name__}: {e}"
+                return False, f"auto-starting Strata failed: {type(e).__name__}: {e}"
         import time as _t
         deadline = _t.time() + wait_timeout
         while _t.time() < deadline:
             _t.sleep(poll_interval)
             if cls.health(timeout=1.0).get("ok"):
                 return True, "auto_started"
-        return False, "Strata 已自动启动，但等待就绪超时（模型可能仍在加载，稍后重试本节点即可）。"
+        return False, "Strata was auto-started but did not become ready in time (the model may still be loading; retry this node in a moment)."
 
     # ---------- spawn ----------
     @classmethod
     def start(cls, run_script=None):
-        """Launch a run-<quant>.bat in a detached console. Non-blocking."""
+        """Launch one of this install's own run-<quant>.bat files in a detached console.
+
+        Only names returned by `list_run_scripts()` (a scan of the install folder) are
+        accepted. Anything else - an absolute path, a UNC share, or a path coming from a
+        /prompt request - is ignored and the default script is used. Non-blocking.
+        """
         with cls._lock:
             h = cls.health(timeout=0.5)
             if h.get("ok"):
                 return {"ok": True, "already_running": True}
             scripts = cls.list_run_scripts()
-            if run_script is None and scripts:
-                run_script = scripts[0]
-            if not run_script or not os.path.exists(run_script):
-                return {"ok": False, "error": f"no run-*.bat found. Scripts: {scripts}"}
+            if not scripts:
+                return {"ok": False, "error": "no run-*.bat found in the Strata install folder"}
+            chosen = None
+            if run_script:
+                name = os.path.basename(os.path.normpath(str(run_script))).lower()
+                for s in scripts:
+                    if os.path.basename(s).lower() == name:
+                        chosen = s
+                        break
+            if chosen is None:
+                chosen = scripts[0]
             creationflags = 0
             if sys.platform == "win32":
                 # CREATE_NEW_CONSOLE 与 DETACHED_PROCESS 互斥，不能同时用（WinError 87）
                 creationflags = subprocess.CREATE_NEW_CONSOLE
             try:
                 cls._proc = subprocess.Popen(
-                    ["cmd.exe", "/c", run_script],
-                    cwd=os.path.dirname(run_script),
+                    ["cmd.exe", "/c", chosen],
+                    cwd=os.path.dirname(chosen),
                     creationflags=creationflags,
                     close_fds=True,
                 )
-                return {"ok": True, "pid": cls._proc.pid, "script": run_script}
+                return {"ok": True, "pid": cls._proc.pid, "script": chosen}
             except Exception as e:
                 return {"ok": False, "error": f"{type(e).__name__}: {e}"}
 
     # ---------- auto-generate json config (fix hardcoded paths) ----------
     _QUANT_JSON_MAP = {
-        "Q2_0":       ("q2_0", "Q2_0"),
-        "Q2_0 (最快 / fastest)":       ("q2_0", "Q2_0"),
-        "IQ2_XS":      ("iq2_xs", "IQ2_XS"),
-        "IQ2_XS (略好 / better)":      ("iq2_xs", "IQ2_XS"),
-        "IQ3_XXS":       ("iq3_xxs", "IQ3_XXS"),
-        "IQ3_XXS (更好 / good)":       ("iq3_xxs", "IQ3_XXS"),
-        "IQ3_S": ("iq3_s", "IQ3_S"),
-        "IQ3_S (最好 / best quality)": ("iq3_s", "IQ3_S"),
+        "Q2_0":            ("q2_0", "Q2_0"),
+        "Q2_0 (fastest)":  ("q2_0", "Q2_0"),
+        "IQ2_XS":          ("iq2_xs", "IQ2_XS"),
+        "IQ2_XS (better)": ("iq2_xs", "IQ2_XS"),
+        "IQ3_XXS":         ("iq3_xxs", "IQ3_XXS"),
+        "IQ3_XXS (good)":  ("iq3_xxs", "IQ3_XXS"),
+        "IQ3_S":           ("iq3_s", "IQ3_S"),
+        "IQ3_S (best quality)": ("iq3_s", "IQ3_S"),
     }
 
     @classmethod
@@ -1027,6 +1120,7 @@ if errorlevel 1 pause
         if not install:
             return False, "Strata install not found"
 
+        quant_label = normalize_quant_label(quant_label)
         if quant_label not in cls._QUANT_JSON_MAP:
             return False, f"unknown quant: {quant_label}"
 
@@ -1686,20 +1780,20 @@ class NInferManager:
                 sm = getattr(cls, "_engine_cap", 0) or 0
                 if sm and 75 <= sm <= 89 and not os.path.exists(os.path.join(
                         cls.engine_dir() or "", "ninfer-sm%d" % sm, "ninfer-serve.exe")):
-                    return False, ("当前显卡算力为 sm_%d，但 NInfer 上游只提供 "
-                                   "ninfer-sm89 / ninfer-sm120 两套构建（无 sm_%d 版本），"
-                                   "跨代硬跑会在加载后直接 abort。请在该机器上改用 "
-                                   "BSAI Qwen/Prompt 节点的 “llama.cpp (local GGUF)” 后端，"
-                                   "models/LLM 下已有对应 GGUF 权重；或把自建的 "
-                                   "ninfer-sm%d/ninfer-serve.exe 放进 engine 目录。"
+                    return False, ("This GPU has compute capability sm_%d, but NInfer upstream ships only the "
+                                   "ninfer-sm89 / ninfer-sm120 builds (there is no sm_%d version); a "
+                                   "cross-generation binary aborts right after loading. On this machine use "
+                                   "the 'llama.cpp (local GGUF)' backend of the BSAI Qwen/Prompt nodes - "
+                                   "matching GGUF weights are already under models/LLM - or place a self-built "
+                                   "ninfer-sm%d/ninfer-serve.exe in the engine folder."
                                    % (sm, sm, sm))
-                return False, ("ninfer-serve.exe 未找到。NInfer 引擎体积过大，不随插件一起分发："
-                               "请安装 ComfyUI-AIManzi-MultimodalPrompt 插件（自带 engine/），"
-                               "或把 engine/ 目录放到 custom_nodes/BSAI-FLUX3-ComfyUI/engine，"
-                               "或设置环境变量 BSAI_NINFER_ENGINE_DIR 指向 engine 目录。")
+                return False, ("ninfer-serve.exe not found. The NInfer engine is too large to ship with the "
+                               "plugin: install the ComfyUI-AIManzi-MultimodalPrompt plugin (it bundles "
+                               "engine/), or put the engine/ folder into "
+                               "custom_nodes/BSAI-FLUX3-ComfyUI/engine, or set BSAI_NINFER_ENGINE_DIR to it.")
             model = target or cls.find_model()
             if not model:
-                return False, "未找到 *.ninfer 模型。请把 .ninfer 模型放入 ComfyUI/models/LLM。"
+                return False, "No *.ninfer model found. Put the .ninfer model under ComfyUI/models/LLM."
             # Switching models: stop the current engine first.
             if cls._proc is not None and cls._proc.poll() is None:
                 if cls._active_model_path != model:
@@ -1736,7 +1830,7 @@ class NInferManager:
                         stdout=lf, stderr=subprocess.STDOUT,
                     )
             except Exception as e:
-                return False, f"启动 ninfer 失败: {type(e).__name__}: {e}"
+                return False, f"failed to start ninfer: {type(e).__name__}: {e}"
             deadline = time.time() + wait_timeout
             while time.time() < deadline:
                 time.sleep(poll_interval)
@@ -1749,8 +1843,8 @@ class NInferManager:
                         tail = open(log_path, encoding="utf-8", errors="replace").read().splitlines()[-15:]
                     except Exception:
                         tail = []
-                    return False, "NInfer 进程已退出。引擎日志:\n" + "\n".join(tail)
-            return False, f"等待 NInfer 启动超时({wait_timeout:.0f}s)"
+                    return False, "The NInfer process exited. Engine log:\n" + "\n".join(tail)
+            return False, f"timed out waiting for NInfer to start ({wait_timeout:.0f}s)"
 
     @staticmethod
     def _kill_orphans():
@@ -1983,12 +2077,12 @@ class NemotronManager:
                 return True, f"already_running ({os.path.basename(target or '?')})"
             engine = cls.find_engine()
             if not engine:
-                return False, ("llama-server.exe 未找到。请把 llama.cpp 运行时放入 "
-                               "BSAI-LLM-Strata/Nemotron/llama.cpp/（或 models/LLM/Nemotron/llama.cpp/）。")
+                return False, ("llama-server.exe not found. Put the llama.cpp runtime into "
+                               "BSAI-LLM-Strata/Nemotron/llama.cpp/ (or models/LLM/Nemotron/llama.cpp/).")
             model = target or cls.find_model()
             if not model:
-                return False, ("未找到 Nemotron GGUF 模型。请把模型下载到 "
-                               "ComfyUI/models/LLM/Nemotron/（例如 NVIDIA-Nemotron-3.5-Bolt-74B-A9B-24GB.gguf）。")
+                return False, ("No Nemotron GGUF model found. Download the model into "
+                               "ComfyUI/models/LLM/Nemotron/ (for example NVIDIA-Nemotron-3.5-Bolt-74B-A9B-24GB.gguf).")
             mmproj = cls.find_mmproj()
             # Switching model / restart: stop the current server first.
             if cls._proc is not None and cls._proc.poll() is None:
@@ -2030,7 +2124,7 @@ class NemotronManager:
                     cls._proc = subprocess.Popen(command, cwd=os.path.dirname(engine), env=env,
                                                  stdout=lf, stderr=subprocess.STDOUT)
             except Exception as e:
-                return False, f"启动 llama-server 失败: {type(e).__name__}: {e}"
+                return False, f"failed to start llama-server: {type(e).__name__}: {e}"
             deadline = time.time() + wait_timeout
             while time.time() < deadline:
                 time.sleep(poll_interval)
@@ -2043,8 +2137,8 @@ class NemotronManager:
                         tail = open(log_path, encoding="utf-8", errors="replace").read().splitlines()[-15:]
                     except Exception:
                         tail = []
-                    return False, "llama-server 进程已退出。引擎日志:\n" + "\n".join(tail)
-            return False, f"等待 Nemotron 启动超时({wait_timeout:.0f}s)。请查看 nemotron-startup.log。"
+                    return False, "The llama-server process exited. Engine log:\n" + "\n".join(tail)
+            return False, f"timed out waiting for Nemotron to start ({wait_timeout:.0f}s). See nemotron-startup.log."
 
     @classmethod
     def _stop(cls, timeout=15.0):
@@ -2232,13 +2326,13 @@ class FlintManager:
                 return True, f"already_running ({os.path.basename(target or '?')})"
             engine = cls.find_engine()
             if not engine:
-                return False, ("llama-server.exe 未找到。请把 llama.cpp 运行时放入 "
-                               "BSAI-LLM-Strata/flint/llama.cpp/、models/LLM/flint/llama.cpp/，"
-                               "或整合包根的 BSAI-llama.cpp/ / llama.cpp/。")
+                return False, ("llama-server.exe not found. Put the llama.cpp runtime into "
+                               "BSAI-LLM-Strata/flint/llama.cpp/, models/LLM/flint/llama.cpp/, "
+                               "or BSAI-llama.cpp/ / llama.cpp/ at the portable package root.")
             model = target or cls.find_model()
             if not model:
-                return False, ("未找到 Flint GGUF 模型。请把模型下载到 "
-                               "ComfyUI/models/LLM/flint/（例如 flint-UD-Q4_K_XL.gguf）。")
+                return False, ("No Flint GGUF model found. Download the model into "
+                               "ComfyUI/models/LLM/flint/ (for example flint-UD-Q4_K_XL.gguf).")
             if cls._proc is not None and cls._proc.poll() is None:
                 if cls._active_model_path != model:
                     print(f"[BSAI-LLM-Strata] Flint 切换模型: "
@@ -2271,7 +2365,7 @@ class FlintManager:
                     cls._proc = subprocess.Popen(command, cwd=os.path.dirname(engine), env=env,
                                                  stdout=lf, stderr=subprocess.STDOUT)
             except Exception as e:
-                return False, f"启动 llama-server 失败: {type(e).__name__}: {e}"
+                return False, f"failed to start llama-server: {type(e).__name__}: {e}"
             deadline = time.time() + wait_timeout
             while time.time() < deadline:
                 time.sleep(poll_interval)
@@ -2284,8 +2378,8 @@ class FlintManager:
                         tail = open(log_path, encoding="utf-8", errors="replace").read().splitlines()[-15:]
                     except Exception:
                         tail = []
-                    return False, "llama-server 进程已退出。引擎日志:\n" + "\n".join(tail)
-            return False, f"等待 Flint 启动超时({wait_timeout:.0f}s)。请查看 flint-startup.log。"
+                    return False, "The llama-server process exited. Engine log:\n" + "\n".join(tail)
+            return False, f"timed out waiting for Flint to start ({wait_timeout:.0f}s). See flint-startup.log."
 
     @classmethod
     def _stop(cls, timeout=15.0):
@@ -2468,8 +2562,8 @@ class DeepSeekManager:
             return True, f"already_running ({cls._active_build or target or '?'})"
 
         if not target:
-            return False, ("未找到 DeepSeek-V4.1-Flash GGUF 分片。请把模型下载到 "
-                           "ComfyUI/models/LLM/DeepSeek/（例如 IQ2_XXS 的 4 个分片 + Engram 文件）。")
+            return False, ("No DeepSeek-V4.1-Flash GGUF shards found. Download the model into "
+                           "ComfyUI/models/LLM/DeepSeek/ (for example the four IQ2_XXS shards plus the Engram file).")
 
         with cls._lock:
             _h2 = cls.health(timeout=1.0)
@@ -2480,8 +2574,8 @@ class DeepSeekManager:
 
             install = StrataManager.find_install()
             if not install:
-                return False, ("未找到 Strata 引擎安装。请先运行一次 Qwen3.8-Flash-Next "
-                               "后端以安装 Strata runtime, 或检查 BSAI-LLM-Strata/Strata/。")
+                return False, ("No Strata engine install found. Run the Qwen3.8-Flash-Next "
+                               "backend once to install the Strata runtime, or check BSAI-LLM-Strata/Strata/.")
             venv_py = StrataManager.ensure_strata_venv()
             setup_py = os.path.join(install, "setup.py")
             if not os.path.exists(setup_py):
@@ -2515,20 +2609,20 @@ class DeepSeekManager:
                     p.wait(timeout=wait_timeout)
                     rc = p.returncode
             except subprocess.TimeoutExpired:
-                return False, f"setup.py 超时({wait_timeout:.0f}s)。请查看 deepseek-setup.log。"
+                return False, f"setup.py timed out ({wait_timeout:.0f}s). See deepseek-setup.log."
             except Exception as e:
-                return False, f"启动 setup.py 失败: {type(e).__name__}: {e}"
+                return False, f"failed to start setup.py: {type(e).__name__}: {e}"
 
             if rc != 0:
                 try:
                     tail = open(log_path, encoding="utf-8", errors="replace").read().splitlines()[-25:]
                 except Exception:
                     tail = []
-                return False, "setup.py 失败。引擎日志:\n" + "\n".join(tail)
+                return False, "setup.py failed. Engine log:\n" + "\n".join(tail)
 
             run_script = cls._find_run_script(install)
             if not run_script:
-                return False, "setup.py 完成但未生成 run-*.bat。请查看 deepseek-setup.log。"
+                return False, "setup.py finished but produced no run-*.bat. See deepseek-setup.log."
 
             creationflags = 0
             if sys.platform == "win32":
@@ -2541,7 +2635,7 @@ class DeepSeekManager:
                     close_fds=True,
                 )
             except Exception as e:
-                return False, f"启动 {os.path.basename(run_script)} 失败: {type(e).__name__}: {e}"
+                return False, f"failed to start {os.path.basename(run_script)}: {type(e).__name__}: {e}"
 
             deadline = time.time() + wait_timeout
             while time.time() < deadline:
@@ -2556,8 +2650,8 @@ class DeepSeekManager:
                         tail = open(log_path, encoding="utf-8", errors="replace").read().splitlines()[-20:]
                     except Exception:
                         tail = []
-                    return False, "DeepSeek 服务进程已退出。日志:\n" + "\n".join(tail)
-            return False, f"等待 DeepSeek 启动超时({wait_timeout:.0f}s)。请查看 deepseek-setup.log。"
+                    return False, "The DeepSeek service process exited. Log:\n" + "\n".join(tail)
+            return False, f"timed out waiting for DeepSeek to start ({wait_timeout:.0f}s). See deepseek-setup.log."
 
     @classmethod
     def _stop(cls, timeout=15.0):
@@ -2617,13 +2711,13 @@ class BSAI_LLM_Call:
             "required": {
                 "engine": (["BSAI Strata (Qwen3.8-Flash-Next @8080)",
                             "BSAI Nemotron (llama.cpp @8085)",
-                            "BSAI NInfer (本地反推 @8081)"],
+                            "BSAI NInfer (local captioning @8081)"],
                            {"default": "BSAI Strata (Qwen3.8-Flash-Next @8080)",
                             "tooltip": "Engine: Strata (125B MoE, GGUF) / Nemotron (llama.cpp, 74B-A9B) / NInfer (.ninfer vision model)"}),
                 "prompt": ("STRING", {"multiline": True, "dynamicPrompts": False,
-                                      "tooltip": "User prompt / 用户提示词"}),
+                                      "tooltip": "User prompt"}),
                 "system": ("STRING", {"multiline": True, "default": "You are a helpful assistant.",
-                                     "tooltip": "System prompt / 系统提示词"}),
+                                     "tooltip": "System prompt"}),
                 "quant": (list(QUANT_OPTIONS.keys()), {"default": DEFAULT_QUANT_LABEL,
                            "tooltip": "Strata engine only: which quant to auto-start (if not running)"}),
                 "max_tokens": ("INT", {"default": 1024, "min": 64, "max": 32768, "step": 64}),
@@ -2656,20 +2750,20 @@ class BSAI_LLM_Call:
             if tag == "Strata":
                 ok, msg = StrataManager.ensure_running(quant_label=quant)
                 if not ok:
-                    return (f"[BSAI-LLM-Strata] Strata 启动失败: {msg}",)
+                    return (f"[BSAI-LLM-Strata] Strata failed to start: {msg}",)
                 mid = model or DEFAULT_STRATA_MODEL
                 r = StrataManager.chat(msgs, model=mid, max_tokens=max_tokens,
                                        temperature=temperature)
             elif tag == "Nemotron":
                 ok, msg = NemotronManager.ensure_running()
                 if not ok:
-                    return (f"[BSAI-LLM-Strata] Nemotron 启动失败: {msg}",)
+                    return (f"[BSAI-LLM-Strata] Nemotron failed to start: {msg}",)
                 r = NemotronManager.chat(msgs, model=model or None, max_tokens=max_tokens,
                                          temperature=temperature)
             else:
                 ok, msg = NInferManager.ensure_running()
                 if not ok:
-                    return (f"[BSAI-LLM-Strata] NInfer 启动失败: {msg}",)
+                    return (f"[BSAI-LLM-Strata] NInfer failed to start: {msg}",)
                 r = NInferManager.chat(msgs, model=model or None, max_tokens=max_tokens,
                                        temperature=temperature)
             text = r["choices"][0]["message"]["content"]
@@ -2688,11 +2782,11 @@ class BSAI_LLM_VisionDescribe:
             "required": {
                 "engine": (["BSAI Strata (Qwen3.8-Flash-Next @8080)",
                             "BSAI Nemotron (llama.cpp @8085)",
-                            "BSAI NInfer (本地反推 @8081)"],
+                            "BSAI NInfer (local captioning @8081)"],
                            {"default": "BSAI Strata (Qwen3.8-Flash-Next @8080)",
                             "tooltip": "Engine: Strata (mmproj) / Nemotron (llama.cpp --mmproj) / NInfer (--vision)"}),
                 "image": ("IMAGE",),
-                "prompt": ("STRING", {"multiline": True, "default": "Describe this image in detail, in Chinese.",
+                "prompt": ("STRING", {"multiline": True, "default": "Describe this image in detail.",
                                      "tooltip": "Question/description prompt"}),
                 "max_tokens": ("INT", {"default": 512, "min": 64, "max": 8192, "step": 64}),
             },
@@ -2756,7 +2850,7 @@ class BSAI_LLM_PromptEnhance:
             "required": {
                 "engine": (["BSAI Strata (Qwen3.8-Flash-Next @8080)",
                             "BSAI Nemotron (llama.cpp @8085)",
-                            "BSAI NInfer (本地反推 @8081)"],
+                            "BSAI NInfer (local captioning @8081)"],
                            {"default": "BSAI Strata (Qwen3.8-Flash-Next @8080)",
                             "tooltip": "Engine: Strata / Nemotron / NInfer"}),
                 "raw_prompt": ("STRING", {"multiline": True, "dynamicPrompts": False}),
@@ -2836,12 +2930,23 @@ async def _web_health(request):
 
 async def _web_start(request):
     from aiohttp import web
-    script = request.query.get("script")
+    # The quant label only selects one of the install's own run-*.bat files; a path
+    # supplied by the caller is never accepted.
     quant = request.query.get("quant")
-    if quant and not script:
-        script = StrataManager._bat_for_quant(quant)
+    script = StrataManager._bat_for_quant(quant) if quant else None
     r = StrataManager.start(run_script=script)
     return web.json_response(r)
+
+
+async def _web_install(request):
+    """User-initiated engine install: official repo at the pinned commit, hash-checked."""
+    from aiohttp import web
+    install = StrataManager.ensure_strata_installed()
+    if not install:
+        return web.json_response({"ok": False, "error": "engine source install failed, see the ComfyUI log"})
+    python = StrataManager.ensure_strata_venv()
+    ok = bool(python) and StrataManager.ensure_strata_engine()
+    return web.json_response({"ok": ok, "install_dir": install, "python": python})
 
 
 async def _web_set_quant(request):
@@ -2915,6 +3020,7 @@ async def _web_nemotron_stop(request):
 def setup_web_routes(app):
     app.router.add_get("/bsai/strata/health", _web_health)
     app.router.add_get("/bsai/strata/start", _web_start)
+    app.router.add_post("/bsai/strata/install", _web_install)
     app.router.add_get("/bsai/strata/set_quant", _web_set_quant)
     app.router.add_get("/bsai/strata/setup", _web_setup)
     app.router.add_get("/bsai/ninfer/health", _web_ninfer_health)

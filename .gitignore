@@ -19,3 +19,7 @@ Strata/
 
 # Nemotron llama.cpp runtime binaries (huge, user-specific)
 Nemotron/
+
+# PyInstaller build output (never committed)
+build/
+dist/
