@@ -8,6 +8,28 @@
 
 ## Latest release / 最新版本
 
+### 安全加固 + 全英文界面（2026-11-24）/ Security hardening + English UI
+
+**中文**：本版收紧 `/bsai/strata/start` 与引擎安装链路，并把节点、工作台与模型管理器界面统一为英文。
+
+- **任意脚本执行已修复**：`StrataManager.start()` 不再接受路径参数，只启动安装目录里由 `list_run_scripts()` 扫到的 `run-*.bat`；`/bsai/strata/start` 与 aiohttp handler 的 `script` 参数已移除（只保留 `quant`）。来自 `/prompt`、绝对路径或 UNC 共享的值一律忽略，回落到默认脚本。
+- **引擎只在用户点安装时下载**：删除插件加载时的后台下载线程及其注入补丁；`GET /bsai/strata/health` 只做检测，不再顺带 clone 引擎。
+- **来源固定 + 校验**：仅官方仓库 `Niko1221/Strata`，钉在 tag `v0.2.20` 的提交 `a34979fc`，checkout 后比对 `HEAD`，不符即删目录重来；`STRATA_PREBUILT_URL` 固定到该 tag 的 release 目录（移除 3 个 ghproxy 镜像与 `latest`）；pip 不再覆盖 `PIP_INDEX_URL`；安装目录里残留的 release 包按 `install-manifest.txt` / `SHA256SUMS.txt` 的 pin 表校验，不匹配立即中止；若上游解包后已删除压缩包，则由固定版本的 `setup.py` 按 release 摘要校验接管。
+- **仓库卫生**：`build/`、`dist/` 的 PyInstaller 产物已取消跟踪并加入 `.gitignore`，本地文件保留，现有安装不受影响。
+- **界面英文化**：节点量化档（`Auto (auto)`、`Q2_0 (fastest)`…）、选项、tooltip、状态与全部报错；工作台 `serve-web-index.html` / `serve-web-app.js` 与模型管理器 `serve-bsai-model-manager.py` 的页面、对话框、加载页、报错；助手 system prompt 不再强制中文回答（按用户语言回答，默认英文）。
+- **兼容**：旧偏好里的中文量化标签由映射表在读取时转换为英文，已保存工作流无需重做。
+- **接口变化**：新增 `POST /bsai/strata/install` 作为显式安装入口；`GET /bsai/strata/start` 只接受 `quant`。
+
+**English**: this release locks down `/bsai/strata/start` and the engine install path and switches the node, workbench and model-manager UI to English.
+
+- **Arbitrary script execution fixed**: `StrataManager.start()` no longer takes a path; it only launches a `run-*.bat` found in the install folder by `list_run_scripts()`. The `script` parameter is gone from `/bsai/strata/start` and the aiohttp handler (only `quant` remains). Values from `/prompt`, absolute paths or UNC shares are ignored and the default script is used.
+- **Engine downloads only on an explicit install**: the load-time background download thread and its injected patch are removed; `GET /bsai/strata/health` is detection-only and no longer clones.
+- **Pinned source + checks**: official `Niko1221/Strata` only, at the `v0.2.20` commit `a34979fc`, verified against `HEAD` after checkout (a mismatch deletes the clone); `STRATA_PREBUILT_URL` is fixed to that tag's release folder (the three ghproxy mirrors and `latest` are gone); pip no longer overrides `PIP_INDEX_URL`; leftover release archives are checked against the pinned `install-manifest.txt` / `SHA256SUMS.txt` and a mismatch stops the install; when upstream has already unpacked and deleted them, the pinned `setup.py` release-digest check applies.
+- **Repo hygiene**: the PyInstaller `build/` and `dist/` output is untracked and ignored; the files stay on disk so existing installs keep working.
+- **English UI**: quant labels, node options, tooltips, status and every error string; workbench pages/dialogs/loading page and the model-manager page/errors; the assistant system prompts no longer force Chinese (reply in the user's language, English by default).
+- **Compatibility**: old Chinese quant labels are mapped on read, so saved workflows keep working.
+- **API change**: new `POST /bsai/strata/install`; `GET /bsai/strata/start` only accepts `quant`.
+
 ### 引擎升级：Strata engine 0.1.60（2026-11-16）/ Engine upgrade: Strata engine 0.1.60
 
 **中文**：按上游 **Strata v0.2.14** 的发布包，Qwen 主引擎已从 0.1.56 升到 **0.1.60**（`strata-engine-0.1.60-windows-x86_64-cuda-cuda13`）。0.2.14 把提示（prompt）的读取换成 Strata 自研 GPU kernel，RTX 5090 上 32K 提示 6851→7870 tok/s，chat 输出 274.0→254.2 tok/s（略降）。本次只替换引擎二进制，**BSAI 工作台（`serve/web/app.js`、`index.html`、`bsai-logo.png`、`bsai_model_manager.py`、`serve/server.py` 的 BSAI 补丁）未动**；源码仍是现有的 v0.2.8 基线，0.1.60 与现有控制层、`strata-*.json` 参数实测兼容。
